@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+venv/
+env/
+*.egg-info/
+
+# ML model binaries — regenerate with: python src/train.py
+models/*.pkl
+models/splits.pkl
+
+# Node.js
+dashboard-next/node_modules/
+dashboard-next/.next/
+dashboard-next/.env*
+!dashboard-next/.env.example
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# IDE
+.idea/
+.vscode/

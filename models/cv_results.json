@@ -1,0 +1,18 @@
+{
+  "linear_regression": {
+    "mean": 0.995,
+    "std": 0.0021
+  },
+  "random_forest": {
+    "mean": 0.9958,
+    "std": 0.0018
+  },
+  "gradient_boosting": {
+    "mean": 0.9956,
+    "std": 0.0019
+  },
+  "mlp": {
+    "mean": 0.9935,
+    "std": 0.0019
+  }
+}

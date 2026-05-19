@@ -1,0 +1,38 @@
+version: "3.9"
+
+services:
+
+  # ── FastAPI — ML backend ────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: marketing-roi-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ── Next.js — dashboard frontend ───────────────────────────────────────────
+  web:
+    build:
+      context: ./dashboard-next
+      dockerfile: Dockerfile
+      args:
+        # The rewrite proxy talks to the API container via its service name
+        API_URL: http://api:8000
+    container_name: marketing-roi-web
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      # Passed at runtime as a fallback (next.config.js reads it)
+      API_URL: http://api:8000
