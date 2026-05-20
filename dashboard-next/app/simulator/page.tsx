@@ -1,47 +1,74 @@
 "use client";
 import { useState, useCallback } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { TrendingUp, TrendingDown, Zap, RefreshCw } from "lucide-react";
-import { api, PredictResponse, AllPredictions } from "@/lib/api";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
+import { TrendingUp, TrendingDown, Zap, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
+import { api, PredictResponse, AllPredictions, TvSweepPoint } from "@/lib/api";
 import { fmt, CHART_COLORS } from "@/lib/utils";
 
 const INFLUENCER_OPTIONS = ["Mega", "Macro", "Micro", "Nano"];
 const PRESETS = [
-  { label: "Balanced",    TV: 50,  Radio: 18, Social_Media: 3, Influencer: "Macro" },
-  { label: "TV Heavy",    TV: 90,  Radio: 10, Social_Media: 2, Influencer: "Mega" },
-  { label: "Digital",     TV: 20,  Radio: 5,  Social_Media: 12, Influencer: "Micro" },
-  { label: "Low Budget",  TV: 15,  Radio: 5,  Social_Media: 1, Influencer: "Nano" },
+  { label: "Balanced", TV: 50, Radio: 18, Social_Media: 3, Influencer: "Macro" },
+  { label: "TV Heavy", TV: 90, Radio: 10, Social_Media: 2, Influencer: "Mega" },
+  { label: "Digital", TV: 20, Radio: 5, Social_Media: 12, Influencer: "Micro" },
+  { label: "Low Budget", TV: 15, Radio: 5, Social_Media: 1, Influencer: "Nano" },
 ];
 
 function SliderField({
-  label, value, min, max, step = 1, unit = "M",
-  onChange, color,
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unit = "M",
+  onChange,
+  color,
 }: {
-  label: string; value: number; min: number; max: number;
-  step?: number; unit?: string; onChange: (v: number) => void; color: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (v: number) => void;
+  color: string;
 }) {
   const pct = ((value - min) / (max - min)) * 100;
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium text-slate-300">{label}</label>
+        <label className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+          {label}
+        </label>
         <span className="text-sm font-mono font-bold" style={{ color }}>
-          {fmt(value, 1)}{unit}
+          {fmt(value, 1)}
+          {unit}
         </span>
       </div>
-      <div className="relative h-2 rounded-full bg-slate-700">
+      <div className="relative h-2 rounded-full" style={{ backgroundColor: "var(--border)" }}>
         <div
           className="absolute h-2 rounded-full transition-all"
-          style={{ width: `${pct}%`, background: color }}
+          style={{ width: `${pct}%`, background: value > 0 ? color : "var(--text-muted)" }}
         />
         <input
-          type="range" min={min} max={max} step={step} value={value}
-          onChange={e => onChange(Number(e.target.value))}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value))}
           className="absolute inset-0 w-full opacity-0 cursor-pointer h-2"
         />
       </div>
-      <div className="flex justify-between text-xs text-slate-600">
-        <span>{min}{unit}</span><span>{max}{unit}</span>
+      <div className="flex justify-between text-xs" style={{ color: "var(--text-muted)" }}>
+        <span>
+          {min}
+          {unit}
+        </span>
+        <span>
+          {max}
+          {unit}
+        </span>
       </div>
     </div>
   );
@@ -54,15 +81,23 @@ export default function SimulatorPage() {
   const [influencer, setInfluencer] = useState("Macro");
   const [result, setResult] = useState<PredictResponse | null>(null);
   const [allPreds, setAllPreds] = useState<AllPredictions | null>(null);
+  const [sweepData, setSweepData] = useState<TvSweepPoint[]>([]);
+  const [sweepMax, setSweepMax] = useState(297);
   const [loading, setLoading] = useState(false);
 
   const runPrediction = useCallback(async () => {
     setLoading(true);
     try {
       const body = { TV, Radio, Social_Media: Social, Influencer: influencer };
-      const [r, all] = await Promise.all([api.predict(body), api.predictAll(body)]);
+      const [r, all, sweep] = await Promise.all([
+        api.predict(body),
+        api.predictAll(body),
+        api.tvSweep(Radio, Social, influencer),
+      ]);
       setResult(r);
       setAllPreds(all);
+      setSweepData(sweep.data);
+      setSweepMax(sweep.training_max_tv);
     } catch {
       alert("API error — make sure the FastAPI server is running.");
     } finally {
@@ -71,62 +106,141 @@ export default function SimulatorPage() {
   }, [TV, Radio, Social, influencer]);
 
   const applyPreset = (p: typeof PRESETS[0]) => {
-    setTV(p.TV); setRadio(p.Radio); setSocial(p.Social_Media); setInfluencer(p.Influencer);
-    setResult(null); setAllPreds(null);
+    setTV(p.TV);
+    setRadio(p.Radio);
+    setSocial(p.Social_Media);
+    setInfluencer(p.Influencer);
+    setResult(null);
+    setAllPreds(null);
+    setSweepData([]);
   };
 
   const totalBudget = TV + Radio + Social;
 
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (!active || !payload?.length) return null;
+    return (
+      <div
+        className="border rounded-lg px-3 py-2 shadow-xl"
+        style={{
+          backgroundColor: "var(--bg-card)",
+          borderColor: "var(--border)",
+        }}
+      >
+        <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>
+          {payload[0]?.payload?.TV ? `TV: ${fmt(payload[0].payload.TV)}M` : label}
+        </p>
+        {payload.map((p: any) => (
+          <p key={p.name} className="text-sm font-semibold" style={{ color: p.color }}>
+            {p.name}: {fmt(p.value)}M
+          </p>
+        ))}
+      </div>
+    );
+  };
+
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Budget Simulator</h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <h1>Budget Simulator</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
           Adjust marketing budgets and get real-time Sales & ROI predictions
         </p>
       </div>
 
       <div className="grid grid-cols-5 gap-6">
-        {/* Controls panel */}
+        {/* Controls Panel */}
         <div className="col-span-2 space-y-6">
           {/* Presets */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Quick Presets</p>
+          <div
+            className="rounded-xl p-5 border"
+            style={{
+              backgroundColor: "var(--bg-card)",
+              borderColor: "var(--border)",
+            }}
+          >
+            <p className="text-label mb-3">Quick Presets</p>
             <div className="grid grid-cols-2 gap-2">
-              {PRESETS.map(p => (
+              {PRESETS.map((p) => (
                 <button
                   key={p.label}
                   onClick={() => applyPreset(p)}
-                  className="px-3 py-2 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-left"
+                  className="px-3 py-2 text-xs font-medium rounded-lg border transition-all text-left"
+                  style={{
+                    backgroundColor: "var(--bg-input)",
+                    borderColor: "var(--border)",
+                    color: "var(--text-muted)",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "var(--border)";
+                    e.currentTarget.style.color = "var(--text-primary)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "var(--bg-input)";
+                    e.currentTarget.style.color = "var(--text-muted)";
+                  }}
                 >
                   {p.label}
-                  <span className="block text-slate-500 mt-0.5 font-normal">{p.Influencer} · TV={p.TV}M</span>
+                  <span style={{ color: "var(--text-muted)" }} className="block mt-0.5 text-xs font-normal">
+                    TV={p.TV}M
+                  </span>
                 </button>
               ))}
             </div>
           </div>
 
           {/* Sliders */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 space-y-6">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Budget Allocation</p>
-            <SliderField label="TV Budget" value={TV} min={10} max={100} onChange={setTV} color="#6366f1" />
-            <SliderField label="Radio Budget" value={Radio} min={0} max={50} onChange={setRadio} color="#8b5cf6" />
-            <SliderField label="Social Media" value={Social} min={0} max={14} step={0.5} onChange={setSocial} color="#06b6d4" />
+          <div
+            className="rounded-xl p-6 border space-y-6"
+            style={{
+              backgroundColor: "var(--bg-card)",
+              borderColor: "var(--border)",
+            }}
+          >
+            <p className="text-label">Budget Allocation</p>
+            <SliderField
+              label="TV Budget"
+              value={TV}
+              min={10}
+              max={100}
+              onChange={setTV}
+              color="#4a9eff"
+            />
+            <SliderField
+              label="Radio Budget"
+              value={Radio}
+              min={0}
+              max={50}
+              onChange={setRadio}
+              color="#8b5cf6"
+            />
+            <SliderField
+              label="Social Media"
+              value={Social}
+              min={0}
+              max={14}
+              step={0.5}
+              onChange={setSocial}
+              color="#06b6d4"
+            />
+
+            {/* Influencer */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-sm font-medium text-slate-300">Influencer Type</label>
-                <span className="text-xs text-slate-500">{influencer}</span>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {INFLUENCER_OPTIONS.map(opt => (
+              <label className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                Influencer Type
+              </label>
+              <div className="grid grid-cols-4 gap-1.5 mt-2">
+                {INFLUENCER_OPTIONS.map((opt) => (
                   <button
                     key={opt}
                     onClick={() => setInfluencer(opt)}
-                    className={`py-1.5 text-xs font-medium rounded-lg border transition-all
-                      ${influencer === opt
-                        ? "bg-brand-600/30 border-brand-500/50 text-brand-400"
-                        : "bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600"}`}
+                    className="py-1.5 text-xs font-medium rounded-lg border transition-all"
+                    style={{
+                      backgroundColor: influencer === opt ? "var(--accent)" : "var(--bg-input)",
+                      borderColor: influencer === opt ? "var(--accent)" : "var(--border)",
+                      color: influencer === opt ? "white" : "var(--text-muted)",
+                    }}
                   >
                     {opt}
                   </button>
@@ -134,77 +248,153 @@ export default function SimulatorPage() {
               </div>
             </div>
 
-            {/* Total budget indicator */}
-            <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
-              <span className="text-xs text-slate-400">Total Budget</span>
-              <span className="text-sm font-bold font-mono text-slate-200">{fmt(totalBudget, 1)}M</span>
+            {/* Total Budget */}
+            <div
+              className="pt-2 border-t"
+              style={{ borderColor: "var(--border)" }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Total Budget
+                </span>
+                <span className="text-sm font-bold font-mono" style={{ color: "var(--text-primary)" }}>
+                  {fmt(totalBudget, 1)}M
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Predict button */}
+          {/* Predict Button */}
           <button
             onClick={runPrediction}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3 px-6 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all shadow-lg shadow-brand-600/20"
+            className="w-full flex items-center justify-center gap-2 py-3 px-6 font-semibold rounded-xl transition-all shadow-lg"
+            style={{
+              backgroundColor: loading ? "var(--text-muted)" : "var(--accent)",
+              color: "white",
+              opacity: loading ? 0.6 : 1,
+              cursor: loading ? "not-allowed" : "pointer",
+            }}
           >
-            {loading
-              ? <><RefreshCw className="w-4 h-4 animate-spin" /> Predicting…</>
-              : <><Zap className="w-4 h-4" /> Run Prediction</>}
+            {loading ? (
+              <>
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                Simulating…
+              </>
+            ) : (
+              <>
+                <Zap className="w-4 h-4" />
+                Run Simulation
+              </>
+            )}
           </button>
         </div>
 
-        {/* Results panel */}
+        {/* Results Panel */}
         <div className="col-span-3 space-y-4">
           {!result ? (
-            <div className="h-full flex items-center justify-center bg-slate-900 border border-dashed border-slate-700 rounded-xl">
-              <div className="text-center text-slate-500">
-                <Zap className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Configure your budget and click Run Prediction</p>
+            <div
+              className="h-full flex items-center justify-center rounded-xl border border-dashed py-16"
+              style={{
+                backgroundColor: "var(--bg-card)",
+                borderColor: "var(--border)",
+              }}
+            >
+              <div className="text-center">
+                <Zap className="w-12 h-12 mx-auto mb-3" style={{ color: "var(--text-muted)", opacity: 0.3 }} />
+                <p style={{ color: "var(--text-muted)" }} className="text-sm">
+                  Configure your budget and click Run Simulation
+                </p>
               </div>
             </div>
           ) : (
             <>
-              {/* Main result */}
+              {/* Main Result */}
               <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-2 bg-gradient-to-br from-brand-600/20 to-brand-600/5 border border-brand-500/30 rounded-xl p-6">
-                  <p className="text-xs font-medium text-slate-400 uppercase tracking-wider mb-1">Predicted Sales</p>
-                  <p className="text-5xl font-bold text-white mt-2">{fmt(result.predicted_sales)}M</p>
+                <div
+                  className="col-span-2 rounded-xl p-6 border"
+                  style={{
+                    backgroundColor: "var(--bg-card)",
+                    borderColor: "var(--accent)",
+                  }}
+                >
+                  <p className="text-label mb-2">Predicted Sales</p>
+                  <p className="text-5xl font-bold text-white">
+                    {fmt(result.predicted_sales)}M
+                  </p>
                   <div className="mt-3 flex items-center gap-2">
-                    {result.vs_average >= 0
-                      ? <TrendingUp className="w-4 h-4 text-emerald-400" />
-                      : <TrendingDown className="w-4 h-4 text-red-400" />}
-                    <span className={`text-sm font-medium ${result.vs_average >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                      {result.vs_average >= 0 ? "+" : ""}{fmt(result.vs_average)}M vs dataset avg
+                    {result.vs_average >= 0 ? (
+                      <TrendingUp className="w-4 h-4" style={{ color: "var(--green)" }} />
+                    ) : (
+                      <TrendingDown className="w-4 h-4" style={{ color: "var(--red)" }} />
+                    )}
+                    <span
+                      className="text-sm font-medium"
+                      style={{
+                        color: result.vs_average >= 0 ? "var(--green)" : "var(--red)",
+                      }}
+                    >
+                      {result.vs_average >= 0 ? "+" : ""}
+                      {fmt(result.vs_average)}M vs dataset avg
                     </span>
                   </div>
                 </div>
                 <div className="space-y-3">
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                    <p className="text-xs text-slate-500">ROI</p>
-                    <p className="text-2xl font-bold text-slate-100 mt-0.5">{fmt(result.roi, 2)}×</p>
-                    <p className="text-xs text-slate-500 mt-1">Sales / Budget</p>
+                  <div
+                    className="rounded-xl p-4 border"
+                    style={{
+                      backgroundColor: "var(--bg-card)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      ROI
+                    </p>
+                    <p className="text-2xl font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>
+                      {fmt(result.roi, 2)}×
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                      Sales / Budget
+                    </p>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-4">
-                    <p className="text-xs text-slate-500">Total Budget</p>
-                    <p className="text-2xl font-bold text-slate-100 mt-0.5">{fmt(result.total_budget)}M</p>
-                    <p className="text-xs text-slate-500 mt-1">TV + Radio + SM</p>
+                  <div
+                    className="rounded-xl p-4 border"
+                    style={{
+                      backgroundColor: "var(--bg-card)",
+                      borderColor: "var(--border)",
+                    }}
+                  >
+                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                      Total Budget
+                    </p>
+                    <p className="text-2xl font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>
+                      {fmt(result.total_budget)}M
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+                      TV + Radio + SM
+                    </p>
                   </div>
                 </div>
               </div>
 
-              {/* All model predictions */}
+              {/* All Models Predictions */}
               {allPreds && (
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                  <h3 className="text-sm font-semibold text-slate-200 mb-4">Prediction Across All Models</h3>
+                <div
+                  className="rounded-xl p-5 border"
+                  style={{
+                    backgroundColor: "var(--bg-card)",
+                    borderColor: "var(--border)",
+                  }}
+                >
+                  <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+                    Prediction Across All Models
+                  </h3>
                   <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={allPreds.predictions} barSize={32}>
+                    <BarChart data={allPreds.predictions} barSize={32} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="label" tick={{ fontSize: 10 }} />
                       <YAxis tick={{ fontSize: 10 }} domain={["auto", "auto"]} />
-                      <Tooltip
-                        formatter={(v: number) => [`${fmt(v)}M`, "Predicted Sales"]}
-                        contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
-                      />
+                      <Tooltip content={<CustomTooltip />} />
                       <Bar dataKey="predicted_sales" name="Predicted Sales (M)" radius={[4, 4, 0, 0]}>
                         {allPreds.predictions.map((_, i) => (
                           <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -215,23 +405,33 @@ export default function SimulatorPage() {
                 </div>
               )}
 
-              {/* Budget breakdown bars */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-                <h3 className="text-sm font-semibold text-slate-200 mb-4">Budget Allocation</h3>
+              {/* Budget Breakdown */}
+              <div
+                className="rounded-xl p-5 border"
+                style={{
+                  backgroundColor: "var(--bg-card)",
+                  borderColor: "var(--border)",
+                }}
+              >
+                <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+                  Budget Allocation
+                </h3>
                 <div className="space-y-3">
                   {[
-                    { label: "TV",           value: TV,     total: totalBudget, color: "#6366f1" },
-                    { label: "Radio",        value: Radio,  total: totalBudget, color: "#8b5cf6" },
+                    { label: "TV", value: TV, total: totalBudget, color: "#4a9eff" },
+                    { label: "Radio", value: Radio, total: totalBudget, color: "#8b5cf6" },
                     { label: "Social Media", value: Social, total: totalBudget, color: "#06b6d4" },
                   ].map(({ label, value, total, color }) => (
                     <div key={label} className="space-y-1">
-                      <div className="flex justify-between text-xs text-slate-400">
+                      <div className="flex justify-between text-xs" style={{ color: "var(--text-muted)" }}>
                         <span>{label}</span>
-                        <span className="font-mono">{fmt(value, 1)}M ({fmt(value / total * 100, 1)}%)</span>
+                        <span className="font-mono">
+                          {fmt(value, 1)}M ({fmt((value / total) * 100, 1)}%)
+                        </span>
                       </div>
-                      <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--border)" }}>
                         <div
-                          className="h-full rounded-full transition-all duration-500"
+                          className="h-full rounded-full transition-all"
                           style={{ width: `${(value / total) * 100}%`, background: color }}
                         />
                       </div>
@@ -239,6 +439,39 @@ export default function SimulatorPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Sales Sensitivity Chart */}
+              {sweepData.length > 0 && (
+                <div
+                  className="rounded-xl p-5 border"
+                  style={{
+                    backgroundColor: "var(--bg-card)",
+                    borderColor: "var(--border)",
+                  }}
+                >
+                  <h3 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
+                    Sales Sensitivity: TV Budget Sweep
+                  </h3>
+                  <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+                    Predicted sales as TV spend increases 0 → 300 M (Radio={Radio}M, SM={Social}M fixed)
+                  </p>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={sweepData} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="tv" tick={{ fontSize: 10 }} label={{ value: "TV (M)", position: "insideBottomRight", offset: -5, fontSize: 10 }} />
+                      <YAxis tick={{ fontSize: 10 }} />
+                      <Tooltip formatter={(v: number) => [`${v.toFixed(2)}M`, "Sales"]} labelFormatter={(v) => `TV: ${v}M`} contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8 }} />
+                      {/* Current TV marker */}
+                      <Line type="monotone" dataKey="sales" stroke="#4a9eff" strokeWidth={2} dot={false} />
+                      {/* Training max reference */}
+                    </LineChart>
+                  </ResponsiveContainer>
+                  <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
+                    <span className="flex items-center gap-1"><span className="inline-block w-6 h-0.5 bg-[#4a9eff]" /> Predicted Sales</span>
+                    <span>Training max TV: {sweepMax}M</span>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

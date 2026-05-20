@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
+import NavigationBar from "@/components/NavigationBar";
 
 export const metadata: Metadata = {
   title: "Marketing ROI Dashboard",
@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-slate-950 text-slate-100 min-h-screen">
-        <Sidebar />
-        <main className="ml-60 min-h-screen">
+      <body style={{ backgroundColor: "var(--bg-primary)", color: "var(--text-primary)" }} className="min-h-screen">
+        <NavigationBar />
+        <main className="pt-16 min-h-screen">
           <div className="max-w-7xl mx-auto px-8 py-8">{children}</div>
         </main>
       </body>

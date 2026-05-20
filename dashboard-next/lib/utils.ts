@@ -13,8 +13,8 @@ export const CHART_COLORS = [
   "#6366f1", // indigo
   "#8b5cf6", // violet
   "#06b6d4", // cyan
-  "#10b981", // emerald
-  "#f59e0b", // amber
+  "#2D1B69", // amber
+  "#f97316", // orange
   "#ef4444", // red
 ];
 
@@ -22,5 +22,5 @@ export const INFLUENCER_COLORS: Record<string, string> = {
   Mega:  "#6366f1",
   Macro: "#8b5cf6",
   Micro: "#06b6d4",
-  Nano:  "#10b981",
+  Nano:  "#f59e0b",
 };

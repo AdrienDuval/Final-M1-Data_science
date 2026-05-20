@@ -1,49 +1,49 @@
 "use client";
 import { useEffect, useState } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell, Legend, AreaChart, Area,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  PieChart, Pie, Cell, Legend, AreaChart, Area, ComposedChart, Line,
 } from "recharts";
-import { TrendingUp, Target, DollarSign, Users, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { TrendingUp, Target, DollarSign, Users } from "lucide-react";
 import { api, Stats } from "@/lib/api";
 import { fmt, INFLUENCER_COLORS, CHART_COLORS } from "@/lib/utils";
 
-const BUDGET_COLORS = { TV: "#6366f1", Radio: "#8b5cf6", "Social Media": "#06b6d4" };
+const BUDGET_COLORS = { TV: "#4a9eff", Radio: "#8b5cf6", "Social Media": "#06b6d4" };
 
-function KPICard({
-  title, value, sub, icon: Icon, trend, color = "indigo",
+function StatCard({
+  title, value, subtitle, icon: Icon,
 }: {
-  title: string; value: string; sub: string;
-  icon: React.ElementType; trend?: number; color?: string;
+  title: string; value: string; subtitle: string;
+  icon: React.ElementType;
 }) {
-  const colorMap: Record<string, string> = {
-    indigo: "from-indigo-500/20 to-indigo-500/5 border-indigo-500/20 text-indigo-400",
-    violet: "from-violet-500/20 to-violet-500/5 border-violet-500/20 text-violet-400",
-    cyan:   "from-cyan-500/20   to-cyan-500/5   border-cyan-500/20   text-cyan-400",
-    emerald:"from-emerald-500/20 to-emerald-500/5 border-emerald-500/20 text-emerald-400",
-  };
   return (
-    <div className={`relative bg-gradient-to-br ${colorMap[color]} border rounded-xl p-5 overflow-hidden`}>
+    <div
+      className="relative rounded-xl p-6 border border-[--border] overflow-hidden group"
+      style={{ backgroundColor: "var(--bg-card)" }}
+    >
+      {/* Accent left border */}
+      <div
+        className="absolute left-0 top-0 bottom-0 w-1"
+        style={{ backgroundColor: "var(--accent)" }}
+      />
+
       <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{title}</p>
-          <p className="mt-1.5 text-2xl font-bold text-slate-100">{value}</p>
-          <p className="mt-1 text-xs text-slate-400">{sub}</p>
+        <div className="flex-1">
+          <p className="text-label mb-2">{title}</p>
+          <p className="text-3xl font-bold" style={{ color: "var(--text-primary)" }}>
+            {value}
+          </p>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+            {subtitle}
+          </p>
         </div>
-        <div className={`p-2.5 rounded-lg bg-slate-800/60`}>
-          <Icon className="w-5 h-5 text-slate-300" />
+        <div
+          className="p-2.5 rounded-lg flex-shrink-0"
+          style={{ backgroundColor: "var(--bg-input)" }}
+        >
+          <Icon className="w-5 h-5" style={{ color: "var(--accent)" }} strokeWidth={2} />
         </div>
       </div>
-      {trend !== undefined && (
-        <div className="mt-3 flex items-center gap-1">
-          {trend >= 0
-            ? <ArrowUpRight className="w-3.5 h-3.5 text-emerald-400" />
-            : <ArrowDownRight className="w-3.5 h-3.5 text-red-400" />}
-          <span className={`text-xs font-medium ${trend >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-            {Math.abs(trend)}% vs average
-          </span>
-        </div>
-      )}
     </div>
   );
 }
@@ -51,8 +51,16 @@ function KPICard({
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 shadow-xl">
-      <p className="text-xs text-slate-400 mb-1">{label}</p>
+    <div
+      className="border rounded-lg px-3 py-2 shadow-xl backdrop-blur-sm"
+      style={{
+        backgroundColor: "var(--bg-card)",
+        borderColor: "var(--border)",
+      }}
+    >
+      <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>
+        {label}
+      </p>
       {payload.map((p: any) => (
         <p key={p.name} className="text-sm font-semibold" style={{ color: p.color }}>
           {p.name}: {fmt(p.value)}
@@ -73,9 +81,19 @@ export default function OverviewPage() {
   if (error) return (
     <div className="flex items-center justify-center h-64">
       <div className="text-center">
-        <p className="text-slate-400 text-sm">Could not connect to API.</p>
-        <p className="text-slate-600 text-xs mt-1">Make sure the FastAPI server is running on port 8000.</p>
-        <code className="mt-3 block text-xs text-brand-400 bg-slate-800 px-3 py-2 rounded-lg">
+        <p style={{ color: "var(--text-muted)" }} className="text-sm">
+          Could not connect to API.
+        </p>
+        <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
+          Make sure the FastAPI server is running on port 8000.
+        </p>
+        <code
+          className="mt-3 block text-xs px-3 py-2 rounded-lg"
+          style={{
+            color: "var(--accent)",
+            backgroundColor: "var(--bg-card)",
+          }}
+        >
           uvicorn api.main:app --reload --port 8000
         </code>
       </div>
@@ -84,12 +102,16 @@ export default function OverviewPage() {
 
   if (!stats) return (
     <div className="space-y-8 animate-pulse">
-      <div className="h-8 w-64 bg-slate-800 rounded-lg" />
+      <div className="h-10 w-64 rounded-lg" style={{ backgroundColor: "var(--bg-card)" }} />
       <div className="grid grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-slate-800 rounded-xl" />)}
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-32 rounded-xl" style={{ backgroundColor: "var(--bg-card)" }} />
+        ))}
       </div>
       <div className="grid grid-cols-3 gap-6">
-        {[...Array(3)].map((_, i) => <div key={i} className="h-72 bg-slate-800 rounded-xl" />)}
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="h-80 rounded-xl" style={{ backgroundColor: "var(--bg-card)" }} />
+        ))}
       </div>
     </div>
   );
@@ -99,56 +121,54 @@ export default function OverviewPage() {
   const correlationData = Object.entries(stats.correlations).map(([name, value]) => ({ name, value }));
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-100">Overview</h1>
-        <p className="text-sm text-slate-400 mt-1">Marketing campaign performance at a glance</p>
+        <h1>Data Overview</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
+          Marketing campaign performance at a glance
+        </p>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards Grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KPICard
+        <StatCard
           title="Total Campaigns"
           value={stats.total_campaigns.toLocaleString()}
-          sub="in dataset"
+          subtitle="in dataset"
           icon={Target}
-          color="indigo"
         />
-        <KPICard
+        <StatCard
           title="Avg Sales"
           value={`${fmt(stats.avg_sales)}M`}
-          sub="per campaign"
+          subtitle="per campaign"
           icon={TrendingUp}
-          color="violet"
         />
-        <KPICard
+        <StatCard
           title="Avg ROI"
           value={`${fmt(stats.avg_roi)}×`}
-          sub="sales / total budget"
+          subtitle="sales / total budget"
           icon={DollarSign}
-          color="cyan"
         />
-        <KPICard
+        <StatCard
           title="Best Channel"
           value={stats.best_channel}
-          sub={`corr ${fmt(stats.correlations[stats.best_channel], 3)} with Sales`}
+          subtitle={`corr ${fmt(stats.correlations[stats.best_channel], 3)}`}
           icon={Users}
-          color="emerald"
         />
       </div>
 
-      {/* Charts row 1 */}
+      {/* Charts Row 1 */}
       <div className="grid grid-cols-3 gap-6">
         {/* Sales Distribution */}
-        <div className="col-span-2 bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-4">Sales Distribution</h2>
-          <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={stats.sales_distribution}>
+        <div className="col-span-2 rounded-xl p-6 border border-[--border]" style={{ backgroundColor: "var(--bg-card)" }}>
+          <h2>Sales Distribution</h2>
+          <ResponsiveContainer width="100%" height={240}>
+            <AreaChart data={stats.sales_distribution} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
               <defs>
                 <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="#6366f1" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0.02} />
+                  <stop offset="5%" stopColor="#4a9eff" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#4a9eff" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" />
@@ -157,16 +177,16 @@ export default function OverviewPage() {
               <Tooltip content={<CustomTooltip />} />
               <Area
                 type="monotone" dataKey="count" name="Campaigns"
-                stroke="#6366f1" strokeWidth={2} fill="url(#salesGrad)"
+                stroke="#4a9eff" strokeWidth={2} fill="url(#salesGrad)"
               />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Budget Donut */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-4">Avg Budget Mix</h2>
-          <ResponsiveContainer width="100%" height={220}>
+        <div className="rounded-xl p-6 border border-[--border]" style={{ backgroundColor: "var(--bg-card)" }}>
+          <h2>Avg Budget Mix</h2>
+          <ResponsiveContainer width="100%" height={240}>
             <PieChart>
               <Pie
                 data={budgetData} dataKey="value" nameKey="name"
@@ -176,30 +196,73 @@ export default function OverviewPage() {
                 {budgetData.map((entry) => (
                   <Cell
                     key={entry.name}
-                    fill={BUDGET_COLORS[entry.name as keyof typeof BUDGET_COLORS] ?? "#94a3b8"}
+                    fill={BUDGET_COLORS[entry.name as keyof typeof BUDGET_COLORS] ?? "#4a9eff"}
                   />
                 ))}
               </Pie>
               <Tooltip
                 formatter={(v: number) => [`${fmt(v)}M`, "Avg Budget"]}
-                contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8 }}
-                labelStyle={{ color: "#94a3b8" }}
+                contentStyle={{
+                  background: "var(--bg-card)",
+                  border: "1px solid var(--border)",
+                  borderRadius: 8,
+                }}
+                labelStyle={{ color: "var(--text-muted)" }}
               />
               <Legend
                 iconType="circle" iconSize={8}
-                formatter={(v) => <span className="text-xs text-slate-400">{v}</span>}
+                formatter={(v) => <span className="text-xs" style={{ color: "var(--text-muted)" }}>{v}</span>}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Charts row 2 */}
+      {/* Evaluation Figures — 2-col × 3-row grid */}
+      <div>
+        <h2 className="mb-4">Model Evaluation Figures</h2>
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            { src: "http://localhost:8000/figures/feature_importance.png", label: "Feature Importance" },
+            { src: "http://localhost:8000/figures/regression_r2.png",      label: "Regression R²" },
+            { src: "http://localhost:8000/figures/residuals.png",           label: "Residuals" },
+            { src: "http://localhost:8000/figures/residuals_best.png",      label: "Residuals (Best Model)" },
+            { src: "http://localhost:8000/figures/confusion_matrix.png",    label: "Confusion Matrix" },
+            { src: "http://localhost:8000/figures/shap_summary.png",        label: "SHAP Summary" },
+          ].map(({ src, label }) => (
+            <div
+              key={label}
+              className="rounded-xl border border-[--border] overflow-hidden"
+              style={{ backgroundColor: "var(--bg-card)" }}
+            >
+              <p
+                className="text-xs font-medium px-3 py-2 border-b border-[--border]"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {label}
+              </p>
+              <div className="p-2">
+                <img
+                  src={src}
+                  alt={label}
+                  className="w-full h-auto rounded-md object-contain"
+                  style={{ maxHeight: 220 }}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Charts Row 2 */}
       <div className="grid grid-cols-2 gap-6">
         {/* Sales by Influencer */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-4">Avg Sales by Influencer Type</h2>
-          <ResponsiveContainer width="100%" height={200}>
+        <div className="rounded-xl p-6 border border-[--border]" style={{ backgroundColor: "var(--bg-card)" }}>
+          <h2>Avg Sales by Influencer Type</h2>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={influencerData} layout="vertical" barSize={20}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 10 }} />
@@ -207,7 +270,7 @@ export default function OverviewPage() {
               <Tooltip content={<CustomTooltip />} />
               <Bar dataKey="value" name="Avg Sales (M)" radius={[0, 4, 4, 0]}>
                 {influencerData.map((e) => (
-                  <Cell key={e.name} fill={INFLUENCER_COLORS[e.name] ?? "#6366f1"} />
+                  <Cell key={e.name} fill={INFLUENCER_COLORS[e.name] ?? "#4a9eff"} />
                 ))}
               </Bar>
             </BarChart>
@@ -215,10 +278,14 @@ export default function OverviewPage() {
         </div>
 
         {/* Channel Correlation */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-          <h2 className="text-sm font-semibold text-slate-200 mb-1">Channel Correlation with Sales</h2>
-          <p className="text-xs text-slate-500 mb-4">Pearson r — how strongly each budget drives Sales</p>
-          <ResponsiveContainer width="100%" height={200}>
+        <div className="rounded-xl p-6 border border-[--border]" style={{ backgroundColor: "var(--bg-card)" }}>
+          <div>
+            <h2>Channel Correlation with Sales</h2>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+              Pearson r — how strongly each budget drives Sales
+            </p>
+          </div>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={correlationData} barSize={36}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} />
