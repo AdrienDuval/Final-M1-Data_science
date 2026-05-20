@@ -1,0 +1,21 @@
+# Conda environment for the FastAPI / ML Docker image (conda-forge, CPU-only stack)
+name: api
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pandas>=2.0
+  - numpy>=1.24
+  - scikit-learn>=1.3
+  - xgboost>=2.0
+  - fastapi>=0.110
+  - uvicorn>=0.29
+  - httptools
+  - uvloop
+  - watchfiles
+  - websockets
+  - python-dotenv
+  - pyyaml
+  - joblib>=1.3
+  - python-multipart>=0.0.9
+  - curl
