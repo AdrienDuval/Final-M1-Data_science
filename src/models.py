@@ -15,6 +15,7 @@ from sklearn.linear_model import LinearRegression, LogisticRegression
 from sklearn.ensemble import (RandomForestRegressor, RandomForestClassifier,
                                GradientBoostingRegressor, GradientBoostingClassifier)
 from sklearn.neural_network import MLPRegressor, MLPClassifier
+from sklearn.model_selection import RandomizedSearchCV
 
 try:
     from xgboost import XGBRegressor, XGBClassifier
@@ -22,7 +23,25 @@ try:
 except ImportError:
     XGB_AVAILABLE = False
 
-MODELS_DIR = Path(__file__).parent.parent / "models"
+MODELS_DIR   = Path(__file__).parent.parent / "models"
+RANDOM_STATE = 42
+CV_FOLDS     = 5
+TUNE_ITER    = 15   # RandomizedSearchCV iterations (keep fast; increase for final runs)
+
+# ── Tuning parameter grids ────────────────────────────────────────────────────
+_RF_PARAM_GRID = {
+    "n_estimators":      [100, 200, 300, 500],
+    "max_depth":         [None, 5, 10, 20],
+    "min_samples_split": [2, 5, 10],
+    "min_samples_leaf":  [1, 2, 4],
+}
+
+_GB_PARAM_GRID = {
+    "n_estimators":  [100, 200, 300, 500],
+    "max_depth":     [3, 5, 7],
+    "learning_rate": [0.01, 0.05, 0.1, 0.2],
+    "subsample":     [0.6, 0.8, 1.0],
+}
 
 # ── Shared MLP hyper-parameters ───────────────────────────────────────────────
 _MLP_KWARGS = dict(
@@ -85,13 +104,31 @@ def load_model(name: str):
     return joblib.load(MODELS_DIR / name)
 
 
+# ── Tuning helper ─────────────────────────────────────────────────────────────
+
+def _tune(model, param_grid: dict, X_tr, y_tr, scoring: str) -> object:
+    """
+    Run RandomizedSearchCV and return the best estimator.
+    `scoring` is a sklearn scorer string, e.g. 'neg_root_mean_squared_error' or 'f1_macro'.
+    """
+    search = RandomizedSearchCV(
+        model, param_grid,
+        n_iter=TUNE_ITER, cv=CV_FOLDS,
+        scoring=scoring, random_state=RANDOM_STATE,
+        n_jobs=-1, verbose=0,
+    )
+    search.fit(X_tr, y_tr)
+    print(f"    Best params: {search.best_params_}")
+    return search.best_estimator_
+
+
 # ── Training entry point ──────────────────────────────────────────────────────
 
 def train_all(task: str = "regression"):
     """
-    Train all models for the given task, fit and save the preprocessor,
-    then save each trained model.  Returns (trained_dict, preprocessor,
-    X_train_transformed, y_train, y_test).
+    Train all models for the given task with RandomizedSearchCV for RF & GB.
+    Fits and saves the preprocessor, then saves each trained model.
+    Returns (trained_dict, preprocessor, X_train_transformed, y_train, y_test).
     """
     import sys
     sys.path.insert(0, str(Path(__file__).parent))
@@ -109,8 +146,12 @@ def train_all(task: str = "regression"):
         le   = LabelEncoder()
         y_tr = le.fit_transform(y_train)
         save_model(le, "label_encoder.pkl")
+        scoring_rf = "f1_macro"
+        scoring_gb = "f1_macro"
     else:
-        y_tr = y_train.values
+        y_tr       = y_train.values
+        scoring_rf = "neg_root_mean_squared_error"
+        scoring_gb = "neg_root_mean_squared_error"
 
     models = (get_regression_models() if task == "regression"
               else get_classification_models())
@@ -118,7 +159,12 @@ def train_all(task: str = "regression"):
     trained = {}
     for name, m in models.items():
         print(f"  Training {name}...")
-        m.fit(X_tr, y_tr)
+        if name == "random_forest":
+            m = _tune(m, _RF_PARAM_GRID, X_tr, y_tr, scoring_rf)
+        elif name == "gradient_boosting":
+            m = _tune(m, _GB_PARAM_GRID, X_tr, y_tr, scoring_gb)
+        else:
+            m.fit(X_tr, y_tr)
         save_model(m, f"{name}_{task}.pkl")
         trained[name] = m
 

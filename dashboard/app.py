@@ -401,9 +401,27 @@ with tab6:
 
         ip_col1, ip_col2 = st.columns(2)
         with ip_col1:
+            # Determine max allowable target based on the currently selected model.
+            # Tree models (RF, GB) are hard-capped at their training output ceiling;
+            # Linear Regression and MLP can extrapolate so we allow 3× the training max.
+            _max_train_sales = float(df["Sales"].max())
+            _cur_ip_model    = st.session_state.get("ip_model", model_options[0])
+            _target_ceiling  = (
+                _max_train_sales if _cur_ip_model in TREE_MODELS
+                else round(_max_train_sales * 3.0 / 10) * 10
+            )
             target_sales = st.number_input(
-                "Target Sales ($M)", value=200.0, min_value=1.0, step=10.0,
-                help="The sales revenue you want to achieve.")
+                "Target Sales ($M)",
+                value=min(200.0, _target_ceiling),
+                min_value=1.0,
+                max_value=_target_ceiling,
+                step=10.0,
+                help=(
+                    f"Max: ${_target_ceiling:,.0f}M — training ceiling for tree models."
+                    if _cur_ip_model in TREE_MODELS
+                    else f"Max: ${_target_ceiling:,.0f}M — Linear Regression / MLP can extrapolate."
+                ),
+            )
             ip_inf = st.selectbox("Influencer Tier", influencer_options(), key="ip_inf",
                 help="Influencer tier to assume for the budget recommendation.")
             ip_model = st.radio(
@@ -415,11 +433,29 @@ with tab6:
                 help="Upper bound on TV + Radio + Social Media combined spend.")
 
         if st.button("Find Optimal Budget", type="primary"):
+            max_train_sales = float(df["Sales"].max())
+
+            # ── Target-OOR check ──────────────────────────────────────────────
+            # Tree models (RF, GB) are capped at their training output range and
+            # cannot predict beyond the highest Sales value seen during training.
+            # If the target exceeds that ceiling, the optimizer converges to garbage.
+            # Fix: auto-switch to Linear Regression for out-of-range targets.
+            target_oor = target_sales > max_train_sales and ip_model in TREE_MODELS
+            effective_ip_model = "linear_regression" if target_oor else ip_model
+
+            if target_oor:
+                st.warning(
+                    f"**Target ${target_sales:,.0f}M is above the training ceiling "
+                    f"(${max_train_sales:,.0f}M).** "
+                    f"Tree models cannot extrapolate beyond values seen during training — "
+                    f"switched automatically to **Linear Regression** for this optimization."
+                )
+
             with st.spinner("Running optimizer..."):
                 # Objective: minimize (predicted - target)^2
                 def objective(x):
                     tv_o, rad_o, sm_o = float(x[0]), float(x[1]), float(x[2])
-                    pred, _ = predict_reg(ip_model, tv_o, rad_o, sm_o, ip_inf)
+                    pred, _ = predict_reg(effective_ip_model, tv_o, rad_o, sm_o, ip_inf)
                     return (pred - target_sales) ** 2
 
                 # Start from median values in training data
@@ -433,7 +469,7 @@ with tab6:
                                   options={"maxiter": 500, "ftol": 1e-6})
 
                 opt_tv, opt_radio, opt_sm = result.x
-                opt_pred, opt_used = predict_reg(ip_model, opt_tv, opt_radio, opt_sm, ip_inf)
+                opt_pred, opt_used = predict_reg(effective_ip_model, opt_tv, opt_radio, opt_sm, ip_inf)
                 opt_total   = opt_tv + opt_radio + opt_sm
                 opt_roi     = roi_estimate(opt_pred, opt_tv, opt_radio, opt_sm)
 
@@ -452,9 +488,26 @@ with tab6:
                            delta_color="normal")
                 st.metric("Estimated ROI", f"{opt_roi:+.1f}%")
 
-                if opt_used != ip_model:
+                # Model-override notices
+                if target_oor:
+                    st.info(
+                        f"Used **Linear Regression** — target ${target_sales:,.0f}M exceeds "
+                        f"training max ${max_train_sales:,.0f}M. Linear Regression can extrapolate; "
+                        "tree models are hard-capped at their training output range."
+                    )
+                elif opt_used != ip_model:
                     st.caption(f"⚡ Optimizer used **{fmt(opt_used)}** (Linear Regression) "
-                               "because the solution is outside training bounds.")
+                               "because the solution is outside training input bounds.")
+
+                # Warn if even linear regression couldn't close the gap
+                # (e.g. max_budget is too low)
+                if abs(gap) > target_sales * 0.10:
+                    st.warning(
+                        f"The optimizer is still **${abs(gap):,.1f}M "
+                        f"({'above' if gap > 0 else 'below'} target** "
+                        f"after using the full budget cap of ${max_budget:,.0f}M. "
+                        "Try raising the **Max total budget** to close the gap."
+                    )
 
                 # Budget breakdown pie
                 fig_pie, ax_pie = plt.subplots(figsize=(4, 4))

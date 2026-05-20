@@ -42,10 +42,15 @@ def regression_metrics(y_true, y_pred) -> dict:
 
 
 def classification_metrics(y_true, y_pred, y_prob=None) -> dict:
-    from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
+    from sklearn.metrics import (accuracy_score, f1_score, roc_auc_score,
+                                  precision_score, recall_score)
     res = {
-        "Accuracy": round(accuracy_score(y_true, y_pred), 4),
-        "F1-macro": round(f1_score(y_true, y_pred, average="macro"), 4),
+        "Accuracy":  round(accuracy_score(y_true, y_pred), 4),
+        "Precision": round(precision_score(y_true, y_pred, average="macro",
+                                           zero_division=0), 4),
+        "Recall":    round(recall_score(y_true, y_pred, average="macro",
+                                        zero_division=0), 4),
+        "F1-macro":  round(f1_score(y_true, y_pred, average="macro"), 4),
     }
     if y_prob is not None:
         try:
@@ -139,6 +144,25 @@ def plot_feature_importance(model, feature_names: list,
     _save(fig, fname)
 
 
+def plot_permutation_importance(model, X_te, y_te, feature_names: list,
+                                fname: str = "permutation_importance.png"):
+    """Compute and plot permutation importance (model-agnostic, recommended by EF3)."""
+    from sklearn.inspection import permutation_importance
+    result = permutation_importance(model, X_te, y_te, n_repeats=10,
+                                    random_state=42, n_jobs=-1)
+    df_imp = (pd.DataFrame({
+                  "Feature":    feature_names,
+                  "Importance": result.importances_mean,
+                  "Std":        result.importances_std,
+              }).sort_values("Importance", ascending=True))
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.barh(df_imp["Feature"], df_imp["Importance"],
+            xerr=df_imp["Std"], color="steelblue", edgecolor="k", capsize=4)
+    ax.set(xlabel="Mean decrease in R²", title="Permutation Importance (Best Model)")
+    plt.tight_layout()
+    _save(fig, fname)
+
+
 def plot_shap(model, X_transformed, feature_names: list,
               fname: str = "shap_summary.png"):
     try:
@@ -193,6 +217,7 @@ def evaluate_regression(run_shap: bool = False) -> pd.DataFrame:
     plot_metrics_bar(results, "R2", "Regression R² by Model", "regression_r2.png")
     plot_residuals(y_test, best_model.predict(X_te), title=best_name)
     plot_feature_importance(best_model, feature_names)
+    plot_permutation_importance(best_model, X_te, y_test.values, feature_names)
 
     if run_shap:
         plot_shap(best_model, X_te, feature_names)
