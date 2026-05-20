@@ -406,7 +406,7 @@ with tab6:
             # Linear Regression and MLP can extrapolate so we allow 3× the training max.
             _max_train_sales = float(df["Sales"].max())
             _cur_ip_model    = st.session_state.get("ip_model", model_options[0])
-            _target_ceiling  = (
+            _target_ceiling  = float(
                 _max_train_sales if _cur_ip_model in TREE_MODELS
                 else round(_max_train_sales * 3.0 / 10) * 10
             )
