@@ -1,5 +1,5 @@
-Accuracy,F1-macro,ROC-AUC,Model
-0.9737,0.9736,0.9975,logistic_regression
-0.9759,0.9759,0.9988,random_forest
-0.9737,0.9737,0.999,gradient_boosting
-0.9661,0.966,0.9975,mlp
+Accuracy,Precision,Recall,F1-macro,ROC-AUC,Model
+0.9737,0.9737,0.9736,0.9736,0.9975,logistic_regression
+0.9705,0.9706,0.9705,0.9705,0.9979,random_forest
+0.9737,0.9736,0.9737,0.9736,0.999,gradient_boosting
+0.9661,0.9662,0.9662,0.966,0.9975,mlp

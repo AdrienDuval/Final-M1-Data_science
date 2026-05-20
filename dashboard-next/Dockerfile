@@ -12,6 +12,8 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+# Next.js expects public/ for static assets; ensure it exists even if empty
+RUN mkdir -p public
 
 # The rewrite proxy destination — overridden at build time via docker-compose
 ARG API_URL=http://api:8000

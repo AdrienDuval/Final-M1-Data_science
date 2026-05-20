@@ -1,5 +1,5 @@
 Model,MAE,RMSE,R2
 linear_regression,2.6733,7.2545,0.994
-random_forest,2.8716,4.9454,0.9972
-gradient_boosting,2.7508,4.9382,0.9972
+random_forest,2.8189,5.2244,0.9969
+gradient_boosting,2.6742,4.8308,0.9973
 mlp,3.0062,7.225,0.994

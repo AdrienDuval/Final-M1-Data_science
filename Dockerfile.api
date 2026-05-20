@@ -1,16 +1,15 @@
-# ── FastAPI + ML backend ──────────────────────────────────────────────────────
-FROM python:3.11-slim
-
-# System deps (curl for healthcheck)
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+# ── FastAPI + ML backend (Conda / Mamba) ─────────────────────────────────────
+FROM condaforge/mambaforge:24.9.2-0
 
 WORKDIR /app
 
-# Install Python deps first (cached layer — only re-runs if requirements change)
-COPY requirements.api.txt .
-RUN pip install --no-cache-dir -r requirements.api.txt
+# Create env from lockfile-like spec (cached when environment.api.yml unchanged)
+COPY environment.api.yml .
+RUN mamba env create -f environment.api.yml \
+    && mamba clean -afy
+
+ENV CONDA_DEFAULT_ENV=api
+ENV PATH=/opt/conda/envs/api/bin:$PATH
 
 # Copy source & data
 COPY src/  ./src/
@@ -18,7 +17,6 @@ COPY data/ ./data/
 COPY api/  ./api/
 
 # Train all models and bake them into the image.
-# This layer is cached after the first build as long as src/ and data/ don't change.
 RUN python src/train.py
 
 EXPOSE 8000
