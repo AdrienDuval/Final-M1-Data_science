@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useTranslations } from "next-intl";
 import { motion, useMotionValue, useSpring } from "framer-motion";
-import { channelLabel } from "@/lib/i18n-helpers";
+import { channelLabel, corrStrengthLabel, perfClassLabel, skewLabel, statFeatureLabel, statTableHeaders } from "@/lib/i18n-helpers";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area,
@@ -140,16 +140,15 @@ function ActionCard({ href, icon: Icon, title, sub, accent }: {
 }
 
 // ── Histogram panel (EDA) ─────────────────────────────────────────────────────
-function HistPanel({ col, bins, stat, color, note }: {
+function HistPanel({ col, bins, stat, color, note, displayName, ts }: {
   col: string;
   bins: { bin_start: number; bin_end: number; count: number; midpoint: number }[];
   stat: FeatureStat;
   color: string;
   note: string;
+  displayName: string;
+  ts: ReturnType<typeof useTranslations<"stats">>;
 }) {
-  const skewLabel = (sk: number) =>
-    Math.abs(sk) < 0.5 ? "Symmetric" : sk > 0 ? "Right-skewed" : "Left-skewed";
-
   return (
     <motion.div
       className="rounded-card p-5 border"
@@ -160,11 +159,11 @@ function HistPanel({ col, bins, stat, color, note }: {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{col}</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{displayName}</p>
         </div>
         <span className="text-[10px] px-1.5 py-0.5 rounded font-medium"
           style={{ background: `${color}18`, color }}>
-          {skewLabel(stat.skewness)}
+          {skewLabel(ts, stat.skewness)}
         </span>
       </div>
 
@@ -179,7 +178,7 @@ function HistPanel({ col, bins, stat, color, note }: {
               return (
                 <div className="glass rounded-xl px-3 py-2 text-xs shadow-xl" style={{ borderColor: "var(--border-strong)" }}>
                   <p style={{ color: "var(--text-muted)" }}>{fmt(b.bin_start, 1)} – {fmt(b.bin_end, 1)}</p>
-                  <p className="font-semibold tabular-nums" style={{ color: "var(--accent)" }}>{b.count} campaigns</p>
+                  <p className="font-semibold tabular-nums" style={{ color: "var(--accent)" }}>{ts("campaignCount", { count: b.count })}</p>
                 </div>
               );
             }}
@@ -195,9 +194,9 @@ function HistPanel({ col, bins, stat, color, note }: {
 
       <div className="grid grid-cols-3 gap-2 mt-3">
         {[
-          { label: "Mean",   val: fmt(stat.mean,   2) },
-          { label: "Median", val: fmt(stat.median, 2) },
-          { label: "Std",    val: `±${fmt(stat.std, 2)}` },
+          { label: ts("mean"),   val: fmt(stat.mean,   2) },
+          { label: ts("median"), val: fmt(stat.median, 2) },
+          { label: ts("std"),    val: `±${fmt(stat.std, 2)}` },
         ].map(({ label, val }) => (
           <div key={label} className="text-center">
             <p className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
@@ -208,11 +207,11 @@ function HistPanel({ col, bins, stat, color, note }: {
 
       <div className="flex items-center gap-4 mt-2">
         <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-          IQR: {fmt(stat.iqr, 1)} · Skew: {fmt(stat.skewness, 2)}
+          {ts("iqrSkew", { iqr: fmt(stat.iqr, 1), skew: fmt(stat.skewness, 2) })}
         </span>
         {stat.outlier_count > 0 && (
           <span className="text-[10px] font-medium" style={{ color: "#f59e0b" }}>
-            {stat.outlier_count} outliers ({fmt(stat.outlier_pct, 1)}%)
+            {ts("outlierSummary", { count: stat.outlier_count, pct: fmt(stat.outlier_pct, 1) })}
           </span>
         )}
       </div>
@@ -223,9 +222,10 @@ function HistPanel({ col, bins, stat, color, note }: {
 }
 
 // ── Scatter tooltip ───────────────────────────────────────────────────────────
-function ScatterTip({ active, payload }: {
+function ScatterTip({ active, payload, labels }: {
   active?: boolean;
   payload?: Array<{ payload?: ScatterPoint; color?: string }>;
+  labels: { sales: (v: number) => string; tv: (v: number) => string; radio: (v: number) => string };
 }) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
@@ -233,9 +233,9 @@ function ScatterTip({ active, payload }: {
   return (
     <div className="glass rounded-xl px-3 py-2 text-xs shadow-xl" style={{ borderColor: "var(--border-strong)" }}>
       <p className="font-semibold mb-0.5" style={{ color: payload[0].color || "var(--accent)" }}>{d.influencer}</p>
-      <p style={{ color: "var(--text-muted)" }}>Sales: <span className="tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>{fmt(d.sales, 2)} M</span></p>
-      <p style={{ color: "var(--text-muted)" }}>TV: <span className="tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>{fmt(d.tv, 1)} M</span></p>
-      <p style={{ color: "var(--text-muted)" }}>Radio: <span className="tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>{fmt(d.radio, 1)} M</span></p>
+      <p style={{ color: "var(--text-muted)" }}>{labels.sales(d.sales)}</p>
+      <p style={{ color: "var(--text-muted)" }}>{labels.tv(d.tv)}</p>
+      <p style={{ color: "var(--text-muted)" }}>{labels.radio(d.radio)}</p>
     </div>
   );
 }
@@ -251,9 +251,19 @@ function groupByInf(pts: ScatterPoint[]) {
    MAIN PAGE
 ═══════════════════════════════════════════════════════════ */
 export default function OverviewPage() {
-  const t  = useTranslations("overview");
-  const tc = useTranslations("common");
+  const t   = useTranslations("overview");
+  const ta  = useTranslations("analytics");
+  const tc  = useTranslations("common");
+  const ts  = useTranslations("stats");
   const tCh = useTranslations("channels");
+  const tp  = useTranslations("perfClass");
+
+  const tableHeaders = statTableHeaders(ts);
+  const scatterLabels = {
+    sales: (v: number) => ts("scatterSalesLabel", { val: fmt(v, 2) }),
+    tv:    (v: number) => ts("scatterTvLabel",    { val: fmt(v, 1) }),
+    radio: (v: number) => ts("scatterRadioLabel", { val: fmt(v, 1) }),
+  };
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [eda, setEda]     = useState<EDAStats | null>(null);
@@ -375,12 +385,7 @@ export default function OverviewPage() {
                 stroke="#3b82f6" strokeWidth={2} fill="url(#salesGrad)" />
             </AreaChart>
           </ResponsiveContainer>
-          <ChartNote>
-            Revenue is spread broadly across the $0–$360M range with no heavy clustering,
-            indicating that the model was trained on campaigns spanning the full spectrum of marketing investment.
-            The slight peaks at both ends reflect low-budget Nano campaigns and high-spend Mega campaigns,
-            while the middle bands represent the majority of the training distribution.
-          </ChartNote>
+          <ChartNote>{t("noteSalesDistribution")}</ChartNote>
         </motion.div>
 
         {/* Budget donut */}
@@ -407,10 +412,7 @@ export default function OverviewPage() {
             </PieChart>
           </ResponsiveContainer>
           <ChartNote>
-            TV represents ~{tvBudgetPct}% of the average total budget, confirming it as
-            the dominant channel by spend. Radio and Social Media each absorb a smaller share.
-            Since TV also shows the highest correlation with revenue (r = {tvCorr}), this allocation
-            is well-optimised for revenue generation.
+            {t("noteBudgetMix", { pct: tvBudgetPct, tvCorr })}
           </ChartNote>
         </motion.div>
       </div>
@@ -431,7 +433,8 @@ export default function OverviewPage() {
               margin={{ left: 4, right: 8, top: 4, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={44} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={44}
+                tickFormatter={(v) => channelLabel(tCh, String(v))} />
               <Tooltip content={<ChartTip />} />
               <Bar dataKey="value" name={t("avgRevenueM")} radius={[0, 5, 5, 0]}>
                 {influencerData.map((e) => (
@@ -440,12 +443,7 @@ export default function OverviewPage() {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-          <ChartNote>
-            Mega influencer campaigns generate the highest mean revenue, but this partly reflects that
-            Mega campaigns also tend to have larger overall budgets — not just the influencer tier itself.
-            Influencer tier is a low-importance feature in the model; budget magnitude (especially TV) is
-            far more predictive of raw revenue.
-          </ChartNote>
+          <ChartNote>{t("noteInfluencer")}</ChartNote>
         </motion.div>
 
         {/* Channel correlation */}
@@ -465,7 +463,7 @@ export default function OverviewPage() {
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={correlData} barSize={40} margin={{ left: 0, right: 0, top: 8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} tickFormatter={(v) => channelLabel(tCh, String(v))} />
               <YAxis domain={[0, 1]} tick={{ fontSize: 10 }} />
               <Tooltip content={<ChartTip />} />
               <Bar dataKey="value" name={t("correlation")} radius={[5, 5, 0, 0]}>
@@ -476,10 +474,7 @@ export default function OverviewPage() {
             </BarChart>
           </ResponsiveContainer>
           <ChartNote>
-            TV shows near-perfect linear correlation with revenue (r = {tvCorr}) — every dollar of TV spend
-            maps almost directly to a predictable revenue lift. Radio is a strong secondary driver (r = {radioCorr}).
-            Social Media has the weakest link (r = {smCorr}): at current spend levels, additional Social budget
-            yields diminishing returns compared to an equivalent TV increase.
+            {t("noteCorrelation", { tvCorr, radioCorr, smCorr })}
           </ChartNote>
         </motion.div>
 
@@ -518,11 +513,7 @@ export default function OverviewPage() {
               );
             })}
           </div>
-          <ChartNote>
-            The efficiency index weights each channel&apos;s average spend by its Pearson correlation with revenue.
-            TV&apos;s dominant score means redirecting even a small fraction of Social Media budget toward TV
-            typically generates a net positive return — use this as a reallocation guide.
-          </ChartNote>
+          <ChartNote>{t("noteEfficiency")}</ChartNote>
         </motion.div>
       </div>
 
@@ -571,10 +562,10 @@ export default function OverviewPage() {
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--accent)" }}>
-                  Exploratory Data Analysis
+                  {t("edaDividerTitle")}
                 </p>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Statistical distributions, outlier detection &amp; channel scatter analysis
+                  {t("edaDividerSub")}
                 </p>
               </div>
             </div>
@@ -585,24 +576,28 @@ export default function OverviewPage() {
           <section>
             <div className="flex items-center gap-2 mb-2">
               <BarChart2 className="w-4 h-4" style={{ color: "var(--accent)" }} strokeWidth={2} />
-              <h2 style={{ color: "var(--text-primary)" }}>Feature Distributions</h2>
-              <Tip content="25-bin histograms for each numeric feature. Red bars mark the outlier region (outside 1.5×IQR). Blue dashed = mean · green dashed = median. A symmetric shape means values are evenly spread; skewed shapes indicate a tail." />
+              <h2 style={{ color: "var(--text-primary)" }}>{ta("distTitle")}</h2>
+              <Tip content={ta("distTip")} />
             </div>
             <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>
-              25-bin histograms across 4,572 campaigns · red = outlier zone · skewness and IQR shown per feature
+              {t("edaDistSub")}
             </p>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <HistPanel col="TV"           bins={eda.histograms["TV"] ?? []}           stat={eda.feature_stats["TV"]!}           color={FEAT_COLOR.TV}
-                note={`TV budget spans $0–$${fmt(eda.feature_stats["TV"]?.max ?? 0, 0)}M with a near-uniform distribution (skew ≈ ${fmt(eda.feature_stats["TV"]?.skewness ?? 0, 2)}). No significant outliers detected — campaigns are well-distributed across all budget levels, making TV the most stable predictor.`}
+              <HistPanel col="TV" displayName={statFeatureLabel(tCh, ts, "TV")}
+                bins={eda.histograms["TV"] ?? []} stat={eda.feature_stats["TV"]!} color={FEAT_COLOR.TV} ts={ts}
+                note={t("histNoteTv", { max: fmt(eda.feature_stats["TV"]?.max ?? 0, 0), skew: fmt(eda.feature_stats["TV"]?.skewness ?? 0, 2) })}
               />
-              <HistPanel col="Radio"        bins={eda.histograms["Radio"] ?? []}        stat={eda.feature_stats["Radio"]!}        color={FEAT_COLOR.Radio}
-                note={`Radio budget is also broadly distributed (mean $${fmt(eda.feature_stats["Radio"]?.mean ?? 0, 1)}M, std ±${fmt(eda.feature_stats["Radio"]?.std ?? 0, 1)}M). Its near-symmetric shape means the model sees balanced low-and-high Radio investment, supporting reliable correlation estimates with revenue.`}
+              <HistPanel col="Radio" displayName={statFeatureLabel(tCh, ts, "Radio")}
+                bins={eda.histograms["Radio"] ?? []} stat={eda.feature_stats["Radio"]!} color={FEAT_COLOR.Radio} ts={ts}
+                note={t("histNoteRadio", { mean: fmt(eda.feature_stats["Radio"]?.mean ?? 0, 1), std: fmt(eda.feature_stats["Radio"]?.std ?? 0, 1) })}
               />
-              <HistPanel col="Social Media" bins={eda.histograms["Social Media"] ?? []} stat={eda.feature_stats["Social Media"]!} color={FEAT_COLOR["Social Media"]}
-                note={`Social Media budget is compressed into a narrow range ($0–$50M), giving it less variance than TV or Radio. This limited spread partly explains Social Media's weaker correlation with revenue — the model has less signal to learn from at higher spend levels.`}
+              <HistPanel col="Social Media" displayName={statFeatureLabel(tCh, ts, "Social Media")}
+                bins={eda.histograms["Social Media"] ?? []} stat={eda.feature_stats["Social Media"]!} color={FEAT_COLOR["Social Media"]} ts={ts}
+                note={t("histNoteSocial")}
               />
-              <HistPanel col="Sales"        bins={eda.histograms["Sales"] ?? []}        stat={eda.feature_stats["Sales"]!}        color={FEAT_COLOR.Sales}
-                note={`Revenue follows a broad, roughly uniform distribution from $${fmt(eda.feature_stats["Sales"]?.min ?? 0, 0)}M to $${fmt(eda.feature_stats["Sales"]?.max ?? 0, 0)}M. The balanced spread across the full range is ideal for regression — the model is exposed to all revenue levels rather than being biased toward a narrow band.`}
+              <HistPanel col="Sales" displayName={statFeatureLabel(tCh, ts, "Sales")}
+                bins={eda.histograms["Sales"] ?? []} stat={eda.feature_stats["Sales"]!} color={FEAT_COLOR.Sales} ts={ts}
+                note={t("histNoteSales", { min: fmt(eda.feature_stats["Sales"]?.min ?? 0, 0), max: fmt(eda.feature_stats["Sales"]?.max ?? 0, 0) })}
               />
             </div>
           </section>
@@ -611,8 +606,8 @@ export default function OverviewPage() {
           <section>
             <div className="flex items-center gap-2 mb-2">
               <Activity className="w-4 h-4" style={{ color: "var(--accent)" }} strokeWidth={2} />
-              <h2 style={{ color: "var(--text-primary)" }}>Statistical Summary</h2>
-              <Tip content="IQR = Q3 − Q1, the spread of the middle 50% of data. Skewness > 1 or < −1 = non-symmetric distribution. Outliers use the IQR fence: values outside [Q1 − 1.5×IQR, Q3 + 1.5×IQR]." />
+              <h2 style={{ color: "var(--text-primary)" }}>{ta("summaryTitle")}</h2>
+              <Tip content={ta("summaryTip")} />
             </div>
 
             <motion.div
@@ -625,7 +620,7 @@ export default function OverviewPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-input)" }}>
-                      {["Feature", "Mean", "Median", "Std", "Min", "Q1", "Q3", "Max", "IQR", "Skew", "Outliers"].map(h => (
+                      {tableHeaders.map(h => (
                         <th key={h} className="px-4 py-2.5 text-left font-semibold whitespace-nowrap"
                           style={{ color: "var(--text-muted)" }}>{h}</th>
                       ))}
@@ -640,7 +635,7 @@ export default function OverviewPage() {
                           <td className="px-4 py-2.5">
                             <div className="flex items-center gap-2">
                               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: FEAT_COLOR[col] }} />
-                              <span className="font-medium" style={{ color: "var(--text-primary)" }}>{col}</span>
+                              <span className="font-medium" style={{ color: "var(--text-primary)" }}>{statFeatureLabel(tCh, ts, col)}</span>
                             </div>
                           </td>
                           {[s.mean, s.median, s.std, s.min, s.q1, s.q3, s.max, s.iqr].map((v, i) => (
@@ -670,10 +665,10 @@ export default function OverviewPage() {
               </div>
               <div className="px-4 py-3 border-t" style={{ borderColor: "var(--border)" }}>
                 <ChartNote>
-                  All four features show near-zero skewness and zero IQR outliers, confirming a clean, well-bounded dataset.
-                  The IQR (Q3 − Q1) measures the central 50% spread — TV has the widest IQR ({fmt(eda.feature_stats["TV"]?.iqr ?? 0, 1)}M),
-                  reflecting the broadest range of investment. Sales IQR ({fmt(eda.feature_stats["Sales"]?.iqr ?? 0, 1)}M) confirms
-                  that revenue is also widely distributed, giving the model a full range of outcomes to learn from.
+                  {t("summaryTableNote", {
+                    tvIqr: fmt(eda.feature_stats["TV"]?.iqr ?? 0, 1),
+                    salesIqr: fmt(eda.feature_stats["Sales"]?.iqr ?? 0, 1),
+                  })}
                 </ChartNote>
               </div>
             </motion.div>
@@ -683,11 +678,11 @@ export default function OverviewPage() {
           <section>
             <div className="flex items-center gap-2 mb-2">
               <AlertTriangle className="w-4 h-4 text-amber-500" strokeWidth={2} />
-              <h2 style={{ color: "var(--text-primary)" }}>Outlier Detection — IQR Method</h2>
-              <Tip content="IQR method: a value is an outlier if it falls below Q1 − 1.5×IQR or above Q3 + 1.5×IQR. The coloured band shows the middle 50% of data (IQR box). The green tick marks the median." />
+              <h2 style={{ color: "var(--text-primary)" }}>{t("outlierTitleIqr")}</h2>
+              <Tip content={ta("outlierTip")} />
             </div>
             <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>
-              Fences: Q1 − 1.5×IQR and Q3 + 1.5×IQR · coloured band = middle 50% · green tick = median
+              {t("outlierSubIqr")}
             </p>
 
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -715,21 +710,21 @@ export default function OverviewPage() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{col}</span>
+                        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{statFeatureLabel(tCh, ts, col)}</span>
                       </div>
                       <span className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
                         style={{
                           background: s.outlier_count > 0 ? "#f59e0b18" : "rgba(16,185,129,0.12)",
                           color: s.outlier_count > 0 ? "#f59e0b" : "var(--green)",
                         }}>
-                        {s.outlier_count > 0 ? `${s.outlier_count} outliers` : "Clean"}
+                        {s.outlier_count > 0 ? ts("outlierBadge", { count: s.outlier_count }) : ts("clean")}
                       </span>
                     </div>
 
                     <div className="space-y-1.5 mb-3">
                       <div className="flex justify-between text-[10px]" style={{ color: "var(--text-muted)" }}>
                         <span>{fmt(s.whisker_low, 1)}</span>
-                        <span className="font-medium" style={{ color }}>IQR {fmt(s.iqr, 1)}</span>
+                        <span className="font-medium" style={{ color }}>{ts("iqrShort", { iqr: fmt(s.iqr, 1) })}</span>
                         <span>{fmt(s.whisker_high, 1)}</span>
                       </div>
                       <div className="relative h-3 rounded-full overflow-hidden" style={{ background: "var(--track-bg)" }}>
@@ -744,13 +739,13 @@ export default function OverviewPage() {
                         <div className="absolute top-0 h-full w-0.5" style={{ left: `${medPct}%`, background: "var(--green)" }} />
                       </div>
                       <div className="flex justify-between text-[10px]" style={{ color: "var(--text-muted)" }}>
-                        <span>Q1 {fmt(s.q1, 1)}</span>
-                        <span style={{ color: "var(--green)" }}>M {fmt(s.median, 1)}</span>
-                        <span>Q3 {fmt(s.q3, 1)}</span>
+                        <span>{ts("q1")} {fmt(s.q1, 1)}</span>
+                        <span style={{ color: "var(--green)" }}>{ts("medianShort", { val: fmt(s.median, 1) })}</span>
+                        <span>{ts("q3")} {fmt(s.q3, 1)}</span>
                       </div>
                     </div>
                     <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                      Range: {fmt(s.min, 1)} – {fmt(s.max, 1)} · σ = {fmt(s.std, 2)}
+                      {ts("rangeWithStd", { min: fmt(s.min, 1), max: fmt(s.max, 1), std: fmt(s.std, 2) })}
                     </p>
                   </motion.div>
                 );
@@ -765,9 +760,7 @@ export default function OverviewPage() {
               >
                 <ArrowUpRight className="w-4 h-4 flex-shrink-0" style={{ color: "var(--green)" }} />
                 <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-                  No outliers detected in any feature using the IQR method. The dataset is clean and well-bounded
-                  across all channels — no campaign had an anomalously high or low budget for any channel relative
-                  to its peers. This means the model was not influenced by extreme data points during training.
+                  {t("noOutliersExtended")}
                 </p>
               </motion.div>
             )}
@@ -777,19 +770,19 @@ export default function OverviewPage() {
           <section>
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="w-4 h-4" style={{ color: "var(--accent)" }} strokeWidth={2} />
-              <h2 style={{ color: "var(--text-primary)" }}>Channel vs Revenue Scatter</h2>
-              <Tip content="Each dot is one campaign (500 sampled), coloured by influencer tier. Zero-budget campaigns are excluded since they carry no signal for that channel's spend-revenue relationship. Pearson r in the top-right quantifies the linear correlation strength." />
+              <h2 style={{ color: "var(--text-primary)" }}>{ta("scatterTitle")}</h2>
+              <Tip content={ta("scatterTip")} />
             </div>
             <p className="text-xs mb-5" style={{ color: "var(--text-muted)" }}>
-              500 sampled campaigns · zero-budget rows excluded · coloured by influencer tier · Pearson r shown
+              {t("scatterSubDashboard")}
             </p>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {[
-                { xKey: "tv"    as const, label: "TV Budget (M)",    groups: tvScatterGroups,    corr: eda.pairwise_correlations["TV|Sales"],
-                  note: `The TV-vs-Revenue scatter forms a nearly perfect straight line (r = ${fmt(eda.pairwise_correlations["TV|Sales"] ?? 0, 4)}), confirming that TV spend is almost deterministically linked to campaign revenue. All four influencer tiers overlap closely, showing that TV spend dominates over tier choice for revenue prediction.` },
-                { xKey: "radio" as const, label: "Radio Budget (M)", groups: radioScatterGroups, corr: eda.pairwise_correlations["Radio|Sales"],
-                  note: `Radio shows a strong positive relationship with revenue (r = ${fmt(eda.pairwise_correlations["Radio|Sales"] ?? 0, 4)}), but with considerably more scatter than TV — indicating that Radio spend alone is less sufficient to predict revenue. The fan-shaped spread suggests Radio's effect is amplified when combined with TV investment.` },
+                { xKey: "tv" as const, label: ts("tvBudgetM"), groups: tvScatterGroups, corr: eda.pairwise_correlations["TV|Sales"],
+                  note: t("scatterTvNote", { r: fmt(eda.pairwise_correlations["TV|Sales"] ?? 0, 4) }) },
+                { xKey: "radio" as const, label: ts("radioBudgetM"), groups: radioScatterGroups, corr: eda.pairwise_correlations["Radio|Sales"],
+                  note: t("scatterRadioNote", { r: fmt(eda.pairwise_correlations["Radio|Sales"] ?? 0, 4) }) },
               ].map(({ xKey, label, groups, corr, note }) => (
                 <motion.div
                   key={xKey}
@@ -800,7 +793,7 @@ export default function OverviewPage() {
                 >
                   <div className="flex items-center justify-between mb-4">
                     <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {label} vs Sales
+                      {ts("vsSales", { label, sales: ts("sales") })}
                     </p>
                     <span className="text-xs font-mono px-2 py-0.5 rounded-lg border"
                       style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--accent)" }}>
@@ -817,12 +810,12 @@ export default function OverviewPage() {
                         height={40}
                       />
                       <YAxis
-                        dataKey="sales" name="Sales (M)" type="number"
+                        dataKey="sales" name={ts("salesM")} type="number"
                         tick={{ fontSize: 10 }}
-                        label={{ value: "Sales (M)", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "var(--text-muted)" }}
+                        label={{ value: ts("salesM"), angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "var(--text-muted)" }}
                         width={50}
                       />
-                      <Tooltip content={<ScatterTip />} />
+                      <Tooltip content={<ScatterTip labels={scatterLabels} />} />
                       {INF_ORDER.map(inf => (
                         <Scatter
                           key={inf}
@@ -853,8 +846,8 @@ export default function OverviewPage() {
           <section>
             <div className="flex items-center gap-2 mb-2">
               <Users className="w-4 h-4" style={{ color: "var(--accent)" }} strokeWidth={2} />
-              <h2 style={{ color: "var(--text-primary)" }}>Performance Class Distribution</h2>
-              <Tip content="Campaigns are split into three equal thirds (quantile-based): top 33% = High, middle 33% = Medium, bottom 33% = Low performance. The perfectly balanced split ensures classifiers are not biased toward any class during training." />
+              <h2 style={{ color: "var(--text-primary)" }}>{ta("classTitle")}</h2>
+              <Tip content={ta("classTip")} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -869,13 +862,13 @@ export default function OverviewPage() {
                     <Pie
                       data={classPieData} dataKey="value" nameKey="label"
                       cx="50%" cy="50%" innerRadius={55} outerRadius={88} paddingAngle={3}
-                      label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`}
+                      label={({ label, percent }) => `${perfClassLabel(tp, label)} ${(percent * 100).toFixed(0)}%`}
                       labelLine={false}
                     >
                       {classPieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                     </Pie>
                     <Tooltip
-                      formatter={(v: number, n: string) => [v, n]}
+                      formatter={(v: number, n: string) => [v, perfClassLabel(tp, n)]}
                       contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-strong)", borderRadius: 8, fontSize: 11 }}
                     />
                   </PieChart>
@@ -884,14 +877,12 @@ export default function OverviewPage() {
                   {classPieData.map(({ label, fill }) => (
                     <div key={label} className="flex items-center gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full" style={{ background: fill }} />
-                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</span>
+                      <span className="text-xs" style={{ color: "var(--text-muted)" }}>{perfClassLabel(tp, label)}</span>
                     </div>
                   ))}
                 </div>
                 <ChartNote>
-                  The three performance classes are exactly balanced by design — each contains ~{Math.round(stats.total_campaigns / 3)} campaigns (~33%).
-                  This intentional balance ensures the classification models are trained without class-imbalance bias,
-                  giving equal predictive weight to High, Medium, and Low campaign outcomes.
+                  {t("classPieNote", { count: Math.round(stats.total_campaigns / 3) })}
                 </ChartNote>
               </motion.div>
 
@@ -901,11 +892,11 @@ export default function OverviewPage() {
                   const pct   = (count / stats.total_campaigns * 100).toFixed(1);
                   const color = CLASS_COLOR[cls];
                   const Icon  = cls === "High" ? ArrowUpRight : cls === "Low" ? ArrowDownRight : Activity;
-                  const descs: Record<string, string> = {
-                    High:   `Top 33% revenue (> ${fmt(stats.sales_q66 ?? 0, 1)}M) · Strong channel investment across TV and Radio`,
-                    Medium: `Middle 33% (${fmt(stats.sales_q33 ?? 0, 1)}M – ${fmt(stats.sales_q66 ?? 0, 1)}M) · Solid results with room to optimise channel mix`,
-                    Low:    `Bottom 33% (< ${fmt(stats.sales_q33 ?? 0, 1)}M) · Underspend or misaligned channel weighting detected`,
-                  };
+                  const descKeys = { High: "classHighCard", Medium: "classMediumCard", Low: "classLowCard" } as const;
+                  const desc = t(descKeys[cls], {
+                    q33: fmt(stats.sales_q33 ?? 0, 1),
+                    q66: fmt(stats.sales_q66 ?? 0, 1),
+                  });
                   return (
                     <motion.div key={cls}
                       className="rounded-card p-4 border flex items-center gap-4"
@@ -917,8 +908,10 @@ export default function OverviewPage() {
                         <Icon className="w-4 h-4" style={{ color }} strokeWidth={1.8} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{cls} Performance</p>
-                        <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-muted)" }}>{descs[cls]}</p>
+                        <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                          {ts("performanceClass", { cls: perfClassLabel(tp, cls) })}
+                        </p>
+                        <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--text-muted)" }}>{desc}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="text-lg font-bold tabular-nums" style={{ color }}>{count.toLocaleString()}</p>
@@ -935,15 +928,15 @@ export default function OverviewPage() {
           <section>
             <div className="flex items-center gap-2 mb-5">
               <Activity className="w-4 h-4" style={{ color: "var(--accent)" }} strokeWidth={2} />
-              <h2 style={{ color: "var(--text-primary)" }}>Pairwise Feature Correlations</h2>
-              <Tip content="Pearson r between every pair of numeric features. Budget channels (TV, Radio, Social Media) show near-zero correlation with each other — no multicollinearity — meaning each channel contributes independent signal to the model. High channel-to-sales correlations confirm strong linear predictability." />
+              <h2 style={{ color: "var(--text-primary)" }}>{ta("corrTitle")}</h2>
+              <Tip content={ta("corrTip")} />
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {Object.entries(eda.pairwise_correlations).map(([key, corr]) => {
                 const [a, b] = key.split("|");
                 const absCorr = Math.abs(corr);
-                const strength = absCorr > 0.7 ? "Strong" : absCorr > 0.4 ? "Moderate" : "Weak";
+                const strength = corrStrengthLabel(ts, absCorr);
                 const strColor = absCorr > 0.7 ? "var(--green)" : absCorr > 0.4 ? "#f59e0b" : "var(--text-muted)";
                 return (
                   <motion.div key={key}
@@ -955,10 +948,10 @@ export default function OverviewPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-1.5 text-xs font-medium min-w-0">
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: FEAT_COLOR[a] ?? "var(--accent)" }} />
-                        <span className="truncate" style={{ color: "var(--text-primary)" }}>{a}</span>
+                        <span className="truncate" style={{ color: "var(--text-primary)" }}>{statFeatureLabel(tCh, ts, a)}</span>
                         <span style={{ color: "var(--text-muted)" }}>×</span>
                         <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: FEAT_COLOR[b] ?? "var(--accent)" }} />
-                        <span className="truncate" style={{ color: "var(--text-primary)" }}>{b}</span>
+                        <span className="truncate" style={{ color: "var(--text-primary)" }}>{statFeatureLabel(tCh, ts, b)}</span>
                       </div>
                       <span className="text-[10px] font-semibold ml-2 flex-shrink-0" style={{ color: strColor }}>{strength}</span>
                     </div>
@@ -976,12 +969,7 @@ export default function OverviewPage() {
               })}
             </div>
             <div className="mt-4">
-              <ChartNote>
-                Budget channels (TV, Radio, Social Media) are nearly uncorrelated with each other (r ≈ 0),
-                confirming no multicollinearity — each channel contributes independent, non-redundant signal
-                to the regression model. TV × Sales and Radio × Sales show the strongest linear links,
-                directly validating why these two channels dominate feature importance.
-              </ChartNote>
+              <ChartNote>{t("pairwiseNote")}</ChartNote>
             </div>
           </section>
         </>
