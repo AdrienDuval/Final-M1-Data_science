@@ -218,6 +218,122 @@ def stats():
     }
 
 
+def _safe(v: float, decimals: int = 4) -> float:
+    """Return rounded float, replacing NaN/Inf with 0.0 for JSON safety."""
+    try:
+        f = float(v)
+        return 0.0 if (f != f or f == float("inf") or f == float("-inf")) else round(f, decimals)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+@app.get("/analytics")
+def analytics():
+    df: pd.DataFrame = state["df"]
+    features = ["TV", "Radio", "Social Media"]
+    all_cols  = features + [TARGET_REG]
+
+    # ── Per-feature statistics ────────────────────────────────────────────────
+    feat_stats: dict = {}
+    for col in all_cols:
+        s = df[col].dropna()
+        q1, q3 = float(s.quantile(0.25)), float(s.quantile(0.75))
+        iqr = q3 - q1
+        lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+        outliers = s[(s < lower) | (s > upper)]
+        feat_stats[col] = {
+            "mean":          _safe(s.mean(), 2),
+            "median":        _safe(s.median(), 2),
+            "std":           _safe(s.std(), 2),
+            "min":           _safe(s.min(), 2),
+            "max":           _safe(s.max(), 2),
+            "q1":            _safe(q1, 2),
+            "q3":            _safe(q3, 2),
+            "iqr":           _safe(iqr, 2),
+            "skewness":      _safe(s.skew(), 4),
+            "kurtosis":      _safe(s.kurt(), 4),
+            "outlier_count": int(len(outliers)),
+            "outlier_pct":   _safe(len(outliers) / len(s) * 100, 2),
+            "whisker_low":   _safe(max(s.min(), lower), 2),
+            "whisker_high":  _safe(min(s.max(), upper), 2),
+        }
+
+    # ── Histograms (25 bins each) ─────────────────────────────────────────────
+    histograms: dict = {}
+    for col in all_cols:
+        s = df[col].dropna()
+        counts, edges = np.histogram(s, bins=25)
+        histograms[col] = [
+            {
+                "bin_start": round(float(edges[i]), 2),
+                "bin_end":   round(float(edges[i + 1]), 2),
+                "count":     int(counts[i]),
+                "midpoint":  round(float((edges[i] + edges[i + 1]) / 2), 2),
+            }
+            for i in range(len(counts))
+        ]
+
+    # ── Scatter sample (≤ 500 points) ────────────────────────────────────────
+    samp = df.sample(min(500, len(df)), random_state=42)
+    scatter_sample = [
+        {
+            "tv":         _safe(r["TV"], 2),
+            "radio":      _safe(r["Radio"], 2),
+            "social":     _safe(r["Social Media"], 2),
+            "sales":      _safe(r[TARGET_REG], 2),
+            "influencer": str(r["Influencer"]),
+        }
+        for _, r in samp.iterrows()
+    ]
+
+    # ── Sales by influencer — box stats ───────────────────────────────────────
+    sales_by_inf: dict = {}
+    for inf, grp in df.groupby("Influencer"):
+        s = grp[TARGET_REG].dropna()
+        q1i, q3i = float(s.quantile(0.25)), float(s.quantile(0.75))
+        iqri = q3i - q1i
+        sales_by_inf[str(inf)] = {
+            "min":          _safe(s.min(), 2),
+            "q1":           _safe(q1i, 2),
+            "median":       _safe(s.median(), 2),
+            "mean":         _safe(s.mean(), 2),
+            "q3":           _safe(q3i, 2),
+            "max":          _safe(s.max(), 2),
+            "std":          _safe(s.std(), 2),
+            "count":        int(len(s)),
+            "whisker_low":  _safe(max(s.min(), q1i - 1.5 * iqri), 2),
+            "whisker_high": _safe(min(s.max(), q3i + 1.5 * iqri), 2),
+        }
+
+    # ── Class distribution ────────────────────────────────────────────────────
+    if "perf_class" in df.columns:
+        class_dist = {str(k): int(v) for k, v in df["perf_class"].value_counts().items()}
+    else:
+        q33, q66 = state["sales_q33"], state["sales_q66"]
+        class_dist = {
+            "High":   int((df[TARGET_REG] >= q66).sum()),
+            "Medium": int(((df[TARGET_REG] >= q33) & (df[TARGET_REG] < q66)).sum()),
+            "Low":    int((df[TARGET_REG] < q33).sum()),
+        }
+
+    # ── Pairwise correlations (upper triangle) ────────────────────────────────
+    pairwise: dict = {}
+    for i, c1 in enumerate(all_cols):
+        for j, c2 in enumerate(all_cols):
+            if i < j:
+                pairwise[f"{c1}|{c2}"] = _safe(df[c1].corr(df[c2]), 4)
+
+    return {
+        "feature_stats":           feat_stats,
+        "histograms":              histograms,
+        "scatter_sample":          scatter_sample,
+        "sales_by_influencer_box": sales_by_inf,
+        "class_distribution":      class_dist,
+        "pairwise_correlations":   pairwise,
+        "total_campaigns":         int(len(df)),
+    }
+
+
 @app.get("/metrics")
 def metrics():
     return {"models": state["metrics"]}
