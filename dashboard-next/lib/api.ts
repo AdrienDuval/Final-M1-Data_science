@@ -108,6 +108,61 @@ export interface ProbabilityResponse {
   goal: number;
 }
 
+export interface FeatureStat {
+  mean: number;
+  median: number;
+  std: number;
+  min: number;
+  max: number;
+  q1: number;
+  q3: number;
+  iqr: number;
+  skewness: number;
+  kurtosis: number;
+  outlier_count: number;
+  outlier_pct: number;
+  whisker_low: number;
+  whisker_high: number;
+}
+
+export interface HistogramBin {
+  bin_start: number;
+  bin_end: number;
+  count: number;
+  midpoint: number;
+}
+
+export interface BoxStats {
+  min: number;
+  q1: number;
+  median: number;
+  mean: number;
+  q3: number;
+  max: number;
+  std: number;
+  count: number;
+  whisker_low: number;
+  whisker_high: number;
+}
+
+export interface ScatterPoint {
+  tv: number;
+  radio: number;
+  social: number;
+  sales: number;
+  influencer: string;
+}
+
+export interface EDAStats {
+  feature_stats: Record<string, FeatureStat>;
+  histograms: Record<string, HistogramBin[]>;
+  scatter_sample: ScatterPoint[];
+  sales_by_influencer_box: Record<string, BoxStats>;
+  class_distribution: Record<string, number>;
+  pairwise_correlations: Record<string, number>;
+  total_campaigns: number;
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, { cache: "no-store" });
   if (!res.ok) throw new Error(`API error ${res.status} on ${path}`);
@@ -137,4 +192,5 @@ export const api = {
     get<TvSweepResponse>(`/simulate/tv-sweep?radio=${radio}&sm=${sm}&influencer=${influencer}&steps=${steps}`),
   optimize:                  (body: OptimizeRequest) => post<OptimizeResponse>("/optimize", body),
   probability:               (body: ProbabilityRequest) => post<ProbabilityResponse>("/probability", body),
+  analytics:                 () => get<EDAStats>("/analytics"),
 };

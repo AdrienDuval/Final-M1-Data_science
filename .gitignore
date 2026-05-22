@@ -29,3 +29,6 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+
+# Cursor IDE (local agent skills — not part of the project deliverable)
+.cursor/skills/
