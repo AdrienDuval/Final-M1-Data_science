@@ -14,6 +14,10 @@ import {
 import { Tip } from "@/components/Tooltip";
 import { api, EDAStats, FeatureStat } from "@/lib/api";
 import { fmt } from "@/lib/utils";
+import {
+  channelLabel, corrStrengthLabel, perfClassLabel,
+  skewLabel, statFeatureLabel, statTableHeaders, boxTableHeaders,
+} from "@/lib/i18n-helpers";
 
 // ── Colour palettes ───────────────────────────────────────────────────────────
 
@@ -46,38 +50,40 @@ const item = {
 const FEATURES_ORDER = ["TV", "Radio", "Social Media", "Sales"];
 const INF_ORDER      = ["Mega", "Macro", "Micro", "Nano"];
 
-function skewLabel(sk: number): string {
-  if (Math.abs(sk) < 0.5) return "Symmetric";
-  if (sk > 0) return "Right-skewed";
-  return "Left-skewed";
-}
-
 // ── Custom tooltip helpers ────────────────────────────────────────────────────
 
-function HistTip({ active, payload }: { active?: boolean; payload?: Array<{ payload?: HistBin; value?: number }> }) {
+function HistTip({ active, payload, countLabel }: {
+  active?: boolean;
+  payload?: Array<{ payload?: HistBin; value?: number }>;
+  countLabel: (n: number) => string;
+}) {
   if (!active || !payload?.length) return null;
   const b = payload[0].payload;
   if (!b) return null;
   return (
     <div className="glass rounded-xl px-3 py-2 text-xs shadow-xl" style={{ borderColor: "var(--border-strong)" }}>
       <p style={{ color: "var(--text-muted)" }}>{fmt(b.bin_start, 1)} – {fmt(b.bin_end, 1)}</p>
-      <p className="font-semibold tabular-nums" style={{ color: "var(--accent)" }}>{b.count} campaigns</p>
+      <p className="font-semibold tabular-nums" style={{ color: "var(--accent)" }}>{countLabel(b.count)}</p>
     </div>
   );
 }
 
 interface HistBin { bin_start: number; bin_end: number; count: number; midpoint: number; }
 
-function ScatterTip({ active, payload }: { active?: boolean; payload?: Array<{ payload?: { tv: number; radio: number; social: number; sales: number; influencer: string }; color?: string }> }) {
+function ScatterTip({ active, payload, labels }: {
+  active?: boolean;
+  payload?: Array<{ payload?: { tv: number; radio: number; social: number; sales: number; influencer: string }; color?: string }>;
+  labels: { sales: (v: number) => string; tv: (v: number) => string; radio: (v: number) => string };
+}) {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
   if (!d) return null;
   return (
     <div className="glass rounded-xl px-3 py-2 text-xs shadow-xl" style={{ borderColor: "var(--border-strong)" }}>
       <p className="font-semibold mb-0.5" style={{ color: payload[0].color || "var(--accent)" }}>{d.influencer}</p>
-      <p style={{ color: "var(--text-muted)" }}>Sales: <span className="tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>{fmt(d.sales, 2)} M</span></p>
-      <p style={{ color: "var(--text-muted)" }}>TV: <span className="tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>{fmt(d.tv, 1)} M</span></p>
-      <p style={{ color: "var(--text-muted)" }}>Radio: <span className="tabular-nums font-medium" style={{ color: "var(--text-primary)" }}>{fmt(d.radio, 1)} M</span></p>
+      <p style={{ color: "var(--text-muted)" }}>{labels.sales(d.sales)}</p>
+      <p style={{ color: "var(--text-muted)" }}>{labels.tv(d.tv)}</p>
+      <p style={{ color: "var(--text-muted)" }}>{labels.radio(d.radio)}</p>
     </div>
   );
 }
@@ -113,7 +119,11 @@ function StatCard({
 
 // ── Histogram panel ───────────────────────────────────────────────────────────
 
-function HistPanel({ col, bins, stat, color }: { col: string; bins: HistBin[]; stat: FeatureStat; color: string }) {
+function HistPanel({ col, bins, stat, color, displayName, ts }: {
+  col: string; bins: HistBin[]; stat: FeatureStat; color: string;
+  displayName: string;
+  ts: ReturnType<typeof useTranslations<"stats">>;
+}) {
   return (
     <motion.div
       className="rounded-card p-5 border"
@@ -124,13 +134,13 @@ function HistPanel({ col, bins, stat, color }: { col: string; bins: HistBin[]; s
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{col}</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{displayName}</p>
         </div>
         <span
           className="text-[10px] px-1.5 py-0.5 rounded font-medium"
           style={{ background: `${color}18`, color }}
         >
-          {skewLabel(stat.skewness)}
+          {skewLabel(ts, stat.skewness)}
         </span>
       </div>
 
@@ -138,7 +148,7 @@ function HistPanel({ col, bins, stat, color }: { col: string; bins: HistBin[]; s
         <BarChart data={bins} barGap={0} barCategoryGap={1}>
           <XAxis dataKey="midpoint" hide />
           <YAxis hide />
-          <Tooltip content={<HistTip />} />
+          <Tooltip content={<HistTip countLabel={(n) => ts("campaignCount", { count: n })} />} />
           <ReferenceLine x={stat.mean}    stroke={color}       strokeDasharray="4 3" strokeWidth={1.5} />
           <ReferenceLine x={stat.median}  stroke="var(--green)" strokeDasharray="4 3" strokeWidth={1.5} />
           <Bar dataKey="count" radius={[2, 2, 0, 0]}>
@@ -152,9 +162,9 @@ function HistPanel({ col, bins, stat, color }: { col: string; bins: HistBin[]; s
 
       <div className="grid grid-cols-3 gap-2 mt-3">
         {[
-          { label: "Mean",   val: fmt(stat.mean,   2) },
-          { label: "Median", val: fmt(stat.median, 2) },
-          { label: "Std",    val: `±${fmt(stat.std, 2)}` },
+          { label: ts("mean"),   val: fmt(stat.mean,   2) },
+          { label: ts("median"), val: fmt(stat.median, 2) },
+          { label: ts("std"),    val: `±${fmt(stat.std, 2)}` },
         ].map(({ label, val }) => (
           <div key={label} className="text-center">
             <p className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{label}</p>
@@ -166,16 +176,16 @@ function HistPanel({ col, bins, stat, color }: { col: string; bins: HistBin[]; s
       <div className="flex items-center gap-3 mt-2.5">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-0.5 rounded" style={{ background: color }} />
-          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>mean</span>
+          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{ts("meanLegend")}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-0.5 rounded" style={{ background: "var(--green)" }} />
-          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>median</span>
+          <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{ts("medianLegend")}</span>
         </div>
         {stat.outlier_count > 0 && (
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2.5 rounded-sm" style={{ background: "#ef444460" }} />
-            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>outlier region</span>
+            <span className="text-[10px]" style={{ color: "var(--text-muted)" }}>{ts("outlierRegion")}</span>
           </div>
         )}
       </div>
@@ -186,8 +196,19 @@ function HistPanel({ col, bins, stat, color }: { col: string; bins: HistBin[]; s
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AnalyticsPage() {
-  const t  = useTranslations("analytics");
-  const tc = useTranslations("common");
+  const t   = useTranslations("analytics");
+  const tc  = useTranslations("common");
+  const ts  = useTranslations("stats");
+  const tCh = useTranslations("channels");
+  const tp  = useTranslations("perfClass");
+
+  const tableHeaders = statTableHeaders(ts);
+  const boxHeaders   = boxTableHeaders(ts);
+  const scatterLabels = {
+    sales: (v: number) => ts("scatterSalesLabel", { val: fmt(v, 2) }),
+    tv:    (v: number) => ts("scatterTvLabel",    { val: fmt(v, 1) }),
+    radio: (v: number) => ts("scatterRadioLabel", { val: fmt(v, 1) }),
+  };
 
   const [data, setData]   = useState<EDAStats | null>(null);
   const [error, setError] = useState(false);
@@ -280,9 +301,11 @@ export default function AnalyticsPage() {
             <HistPanel
               key={col}
               col={col}
+              displayName={statFeatureLabel(tCh, ts, col)}
               bins={data.histograms[col] ?? []}
               stat={stats[col]!}
               color={FEAT_COLOR[col]}
+              ts={ts}
             />
           ))}
         </div>
@@ -306,7 +329,7 @@ export default function AnalyticsPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-input)" }}>
-                  {["Feature", "Mean", "Median", "Std", "Min", "Q1", "Q3", "Max", "IQR", "Skew", "Outliers"].map(h => (
+                  {tableHeaders.map(h => (
                     <th key={h} className="px-4 py-2.5 text-left font-semibold whitespace-nowrap"
                       style={{ color: "var(--text-muted)" }}>
                       {h}
@@ -325,7 +348,7 @@ export default function AnalyticsPage() {
                       <td className="px-4 py-2.5">
                         <div className="flex items-center gap-2">
                           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: FEAT_COLOR[col] }} />
-                          <span className="font-medium" style={{ color: "var(--text-primary)" }}>{col}</span>
+                          <span className="font-medium" style={{ color: "var(--text-primary)" }}>{statFeatureLabel(tCh, ts, col)}</span>
                         </div>
                       </td>
                       {[s.mean, s.median, s.std, s.min, s.q1, s.q3, s.max, s.iqr].map((v, i) => (
@@ -388,7 +411,7 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full" style={{ background: color }} />
-                    <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{col}</span>
+                    <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{statFeatureLabel(tCh, ts, col)}</span>
                   </div>
                   <span
                     className="text-[10px] px-1.5 py-0.5 rounded font-semibold"
@@ -397,7 +420,7 @@ export default function AnalyticsPage() {
                       color: s.outlier_count > 0 ? "#f59e0b" : "var(--green)",
                     }}
                   >
-                    {s.outlier_count > 0 ? `${s.outlier_count} outliers` : "Clean"}
+                    {s.outlier_count > 0 ? ts("outlierBadge", { count: s.outlier_count }) : ts("clean")}
                   </span>
                 </div>
 
@@ -405,7 +428,7 @@ export default function AnalyticsPage() {
                 <div className="space-y-1.5 mb-3">
                   <div className="flex justify-between text-[10px]" style={{ color: "var(--text-muted)" }}>
                     <span>{fmt(s.whisker_low, 1)}</span>
-                    <span className="font-medium" style={{ color }}>IQR: {fmt(s.iqr, 1)}</span>
+                    <span className="font-medium" style={{ color }}>{ts("iqrLabel", { iqr: fmt(s.iqr, 1) })}</span>
                     <span>{fmt(s.whisker_high, 1)}</span>
                   </div>
                   <div className="relative h-3 rounded-full overflow-hidden" style={{ background: "var(--track-bg)" }}>
@@ -433,14 +456,14 @@ export default function AnalyticsPage() {
                     />
                   </div>
                   <div className="flex justify-between text-[10px]" style={{ color: "var(--text-muted)" }}>
-                    <span>Q1 {fmt(s.q1, 1)}</span>
-                    <span style={{ color: "var(--green)" }}>M {fmt(s.median, 1)}</span>
-                    <span>Q3 {fmt(s.q3, 1)}</span>
+                    <span>{ts("q1")} {fmt(s.q1, 1)}</span>
+                    <span style={{ color: "var(--green)" }}>{ts("medianShort", { val: fmt(s.median, 1) })}</span>
+                    <span>{ts("q3")} {fmt(s.q3, 1)}</span>
                   </div>
                 </div>
 
                 <p className="text-[10px]" style={{ color: "var(--text-muted)" }}>
-                  Range: {fmt(s.min, 1)} – {fmt(s.max, 1)}
+                  {ts("rangeLabel", { min: fmt(s.min, 1), max: fmt(s.max, 1) })}
                 </p>
               </motion.div>
             );
@@ -470,8 +493,8 @@ export default function AnalyticsPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {[
-            { xKey: "tv",    label: "TV Budget (M)",    corr: data.pairwise_correlations["TV|Sales"] },
-            { xKey: "radio", label: "Radio Budget (M)", corr: data.pairwise_correlations["Radio|Sales"] },
+            { xKey: "tv",    label: ts("tvBudgetM"),    corr: data.pairwise_correlations["TV|Sales"] },
+            { xKey: "radio", label: ts("radioBudgetM"), corr: data.pairwise_correlations["Radio|Sales"] },
           ].map(({ xKey, label, corr }) => (
             <motion.div
               key={xKey}
@@ -482,7 +505,7 @@ export default function AnalyticsPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                  {label} vs Sales
+                  {ts("vsSales", { label, sales: ts("sales") })}
                 </p>
                 <span className="text-xs font-mono px-2 py-0.5 rounded-lg border"
                   style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--accent)" }}>
@@ -497,12 +520,12 @@ export default function AnalyticsPage() {
                     tick={{ fontSize: 10 }} label={{ value: label, position: "insideBottom", offset: -2, fontSize: 10, fill: "var(--text-muted)" }}
                     height={40}
                   />
-                  <YAxis
-                    dataKey="sales" name="Sales (M)" type="number"
-                    tick={{ fontSize: 10 }} label={{ value: "Sales (M)", angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "var(--text-muted)" }}
-                    width={50}
-                  />
-                  <Tooltip content={<ScatterTip />} />
+                      <YAxis
+                        dataKey="sales" name={ts("salesM")} type="number"
+                        tick={{ fontSize: 10 }} label={{ value: ts("salesM"), angle: -90, position: "insideLeft", offset: 14, fontSize: 10, fill: "var(--text-muted)" }}
+                        width={50}
+                      />
+                      <Tooltip content={<ScatterTip labels={scatterLabels} />} />
                   {INF_ORDER.map(inf => (
                     <Scatter
                       key={inf}
@@ -546,7 +569,7 @@ export default function AnalyticsPage() {
             viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
           >
             <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              Mean ± Std Sales by Tier
+              {ts("meanStdByTier")}
             </p>
             <ResponsiveContainer width="100%" height={200}>
               <ComposedChart data={infBoxData} margin={{ left: -10 }}>
@@ -554,10 +577,10 @@ export default function AnalyticsPage() {
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} />
                 <YAxis tick={{ fontSize: 10 }} tickFormatter={v => `${v}M`} width={48} />
                 <Tooltip
-                  formatter={(v: number, n: string) => [`${fmt(v, 2)} M`, n === "mean" ? "Mean" : n]}
+                  formatter={(v: number, n: string) => [`${fmt(v, 2)} M`, n === "mean" ? ts("mean") : n]}
                   contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-strong)", borderRadius: 8, fontSize: 11 }}
                 />
-                <Bar dataKey="mean" name="Mean Sales" radius={[4, 4, 0, 0]} barSize={36}>
+                <Bar dataKey="mean" name={ts("meanSales")} radius={[4, 4, 0, 0]} barSize={36}>
                   {INF_ORDER.map(inf => <Cell key={inf} fill={INF_COLOR[inf]} />)}
                   <ErrorBar dataKey="std" width={6} strokeWidth={2} stroke="var(--text-muted)" direction="y" />
                 </Bar>
@@ -573,13 +596,13 @@ export default function AnalyticsPage() {
             viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
           >
             <p className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-              Distribution Stats by Tier
+              {ts("distStatsByTier")}
             </p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                    {["Tier", "Min", "Q1", "Median", "Mean", "Q3", "Max", "n"].map(h => (
+                    {boxHeaders.map(h => (
                       <th key={h} className="px-2 py-1.5 text-left font-semibold"
                         style={{ color: "var(--text-muted)" }}>{h}</th>
                     ))}
@@ -639,7 +662,7 @@ export default function AnalyticsPage() {
                   cx="50%" cy="50%"
                   innerRadius={55} outerRadius={90}
                   paddingAngle={3}
-                  label={({ label, percent }) => `${label} ${(percent * 100).toFixed(0)}%`}
+                  label={({ label, percent }) => `${perfClassLabel(tp, label)} ${(percent * 100).toFixed(0)}%`}
                   labelLine={false}
                 >
                   {classPieData.map((entry, i) => (
@@ -656,7 +679,7 @@ export default function AnalyticsPage() {
               {classPieData.map(({ label, fill }) => (
                 <div key={label} className="flex items-center gap-1.5">
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: fill }} />
-                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</span>
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>{perfClassLabel(tp, label)}</span>
                 </div>
               ))}
             </div>
@@ -682,7 +705,7 @@ export default function AnalyticsPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                      {cls} Performance
+                      {ts("performanceClass", { cls: perfClassLabel(tp, cls) })}
                     </p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
                       {t(`class${cls}Desc`)}
@@ -714,7 +737,7 @@ export default function AnalyticsPage() {
           {Object.entries(data.pairwise_correlations).map(([key, corr]) => {
             const [a, b] = key.split("|");
             const absCorr = Math.abs(corr);
-            const strength = absCorr > 0.7 ? "Strong" : absCorr > 0.4 ? "Moderate" : "Weak";
+            const strength = corrStrengthLabel(ts, absCorr);
             const strColor = absCorr > 0.7 ? "var(--green)" : absCorr > 0.4 ? "#f59e0b" : "var(--text-muted)";
             return (
               <motion.div key={key} variants={item}
@@ -724,10 +747,10 @@ export default function AnalyticsPage() {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5 text-xs font-medium min-w-0">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: FEAT_COLOR[a] ?? "var(--accent)" }} />
-                    <span className="truncate" style={{ color: "var(--text-primary)" }}>{a}</span>
-                    <span style={{ color: "var(--text-muted)" }}>×</span>
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: FEAT_COLOR[b] ?? "var(--accent)" }} />
-                    <span className="truncate" style={{ color: "var(--text-primary)" }}>{b}</span>
+                        <span className="truncate" style={{ color: "var(--text-primary)" }}>{statFeatureLabel(tCh, ts, a)}</span>
+                        <span style={{ color: "var(--text-muted)" }}>×</span>
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: FEAT_COLOR[b] ?? "var(--accent)" }} />
+                        <span className="truncate" style={{ color: "var(--text-primary)" }}>{statFeatureLabel(tCh, ts, b)}</span>
                   </div>
                   <span className="text-[10px] font-semibold ml-2 flex-shrink-0" style={{ color: strColor }}>{strength}</span>
                 </div>

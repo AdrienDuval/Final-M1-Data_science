@@ -32,6 +32,14 @@ export interface ClassificationMetric {
   "ROC-AUC": number;
 }
 
+export interface ValTestMetric {
+  Model: string;
+  Val_R2: number;
+  Test_R2: number;
+  Val_RMSE: number;
+  Test_RMSE: number;
+}
+
 export interface FeatureImportance {
   model: string;
   features: { feature: string; importance: number }[];
@@ -184,6 +192,7 @@ export const api = {
   stats:                     () => get<Stats>("/stats"),
   metrics:                   () => get<{ models: ModelMetric[] }>("/metrics"),
   metricsClassification:     () => get<{ models: ClassificationMetric[] }>("/metrics/classification"),
+  metricsValTest:            () => get<{ models: ValTestMetric[] }>("/metrics/val-test"),
   featureImportance:         () => get<FeatureImportance>("/feature-importance"),
   predict:                   (body: PredictRequest) => post<PredictResponse>("/predict", body),
   predictAll:                (body: PredictRequest) => post<AllPredictions>("/predict/all", body),

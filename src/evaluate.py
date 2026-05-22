@@ -85,7 +85,7 @@ def cross_validate_model(model, X, y, task: str = "regression", cv: int = 5) -> 
 def _save(fig, fname: str):
     fig.savefig(FIGURES_DIR / fname, dpi=100)
     plt.close(fig)
-    print(f"Saved → figures/{fname}")
+    print(f"Saved -> figures/{fname}")
 
 
 def plot_residuals(y_true, y_pred, title: str = "Best Model",
@@ -124,6 +124,138 @@ def plot_metrics_bar(results_df: pd.DataFrame, metric_col: str,
     plt.xticks(rotation=30, ha="right")
     plt.tight_layout()
     _save(fig, fname)
+
+
+def plot_val_test_comparison(val_test_df: pd.DataFrame,
+                              fname: str = "val_test_comparison.png"):
+    """Grouped bar chart: validation (CV) vs test R² and RMSE for all 4 models."""
+    models = val_test_df["Model"].tolist()
+    x = np.arange(len(models))
+    width = 0.35
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    fig.suptitle("Validation (CV) vs Test Metrics — All 4 Models", fontsize=13, fontweight="bold")
+
+    # R² (accuracy proxy)
+    ax = axes[0]
+    ax.bar(x - width / 2, val_test_df["Val_R2"],  width, label="Validation (CV)",
+           color="#4C8BE2", edgecolor="k")
+    ax.bar(x + width / 2, val_test_df["Test_R2"], width, label="Test",
+           color="#F28B30", edgecolor="k")
+    ax.set_xticks(x)
+    ax.set_xticklabels([m.replace("_", "\n") for m in models], fontsize=9)
+    ax.set_ylim(max(0, val_test_df[["Val_R2", "Test_R2"]].min().min() - 0.05), 1.0)
+    ax.set(title="R² Score (Accuracy)", ylabel="R²")
+    ax.legend()
+    for rect, v in zip(ax.patches, list(val_test_df["Val_R2"]) + list(val_test_df["Test_R2"])):
+        ax.text(rect.get_x() + rect.get_width() / 2, rect.get_height() + 0.002,
+                f"{v:.4f}", ha="center", va="bottom", fontsize=7)
+
+    # RMSE (loss)
+    ax = axes[1]
+    ax.bar(x - width / 2, val_test_df["Val_RMSE"],  width, label="Validation (CV)",
+           color="#4C8BE2", edgecolor="k")
+    ax.bar(x + width / 2, val_test_df["Test_RMSE"], width, label="Test",
+           color="#F28B30", edgecolor="k")
+    ax.set_xticks(x)
+    ax.set_xticklabels([m.replace("_", "\n") for m in models], fontsize=9)
+    ax.set(title="RMSE (Loss)", ylabel="RMSE")
+    ax.legend()
+    for rect, v in zip(ax.patches, list(val_test_df["Val_RMSE"]) + list(val_test_df["Test_RMSE"])):
+        ax.text(rect.get_x() + rect.get_width() / 2, rect.get_height() + 0.01,
+                f"{v:.3f}", ha="center", va="bottom", fontsize=7)
+
+    plt.tight_layout()
+    _save(fig, fname)
+
+
+def plot_mlp_learning_curves(pipeline, fname: str = "mlp_learning_curves.png"):
+    """Plot MLP per-epoch training loss and validation score."""
+    mlp = (pipeline.named_steps["model"]
+           if hasattr(pipeline, "named_steps") else pipeline)
+    if not hasattr(mlp, "loss_curve_"):
+        print("  MLP loss_curve_ not available — skipping.")
+        return
+
+    epochs = range(1, len(mlp.loss_curve_) + 1)
+    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
+    fig.suptitle("MLP Learning Curves", fontsize=13, fontweight="bold")
+
+    # Training loss
+    axes[0].plot(epochs, mlp.loss_curve_, color="steelblue", linewidth=1.5)
+    axes[0].set(xlabel="Epoch", ylabel="MSE Loss", title="Training Loss per Epoch")
+    axes[0].grid(alpha=0.3)
+
+    # Validation score (R²) — only present when early_stopping=True
+    if hasattr(mlp, "validation_scores_") and mlp.validation_scores_:
+        val_epochs = range(1, len(mlp.validation_scores_) + 1)
+        axes[1].plot(val_epochs, mlp.validation_scores_, color="#F28B30", linewidth=1.5)
+        best_ep = int(np.argmax(mlp.validation_scores_)) + 1
+        axes[1].axvline(best_ep, color="red", linestyle="--", linewidth=1,
+                        label=f"Best epoch {best_ep}")
+        axes[1].set(xlabel="Epoch", ylabel="R² Score",
+                    title="Validation R² per Epoch (early-stopping set)")
+        axes[1].legend()
+        axes[1].grid(alpha=0.3)
+    else:
+        axes[1].text(0.5, 0.5, "Validation scores\nnot available",
+                     ha="center", va="center", transform=axes[1].transAxes, fontsize=11)
+        axes[1].set_axis_off()
+
+    plt.tight_layout()
+    _save(fig, fname)
+
+
+def compute_val_test_metrics_all(models_dir: Path,
+                                  X_tr, X_te,
+                                  y_train, y_test) -> pd.DataFrame:
+    """
+    Run 5-fold CV (validation) and test-set evaluation for all 4 regression models.
+    X_tr / X_te must already be preprocessed (numpy arrays from the fitted preprocessor).
+    """
+    from sklearn.model_selection import cross_validate
+    from sklearn.metrics import make_scorer, r2_score, mean_squared_error
+
+    rmse_scorer = make_scorer(
+        lambda yt, yp: -np.sqrt(mean_squared_error(yt, yp))
+    )
+    y_tr_arr = np.array(y_train)
+    y_te_arr = np.array(y_test)
+
+    rows = []
+    for name in REG_NAMES:
+        path = models_dir / f"{name}_regression.pkl"
+        if not path.exists():
+            print(f"  Skipping {name} (not found)")
+            continue
+        m = joblib.load(path)
+
+        # Test metrics (model expects preprocessed arrays)
+        preds     = m.predict(X_te)
+        test_r2   = round(float(r2_score(y_te_arr, preds)), 4)
+        test_rmse = round(float(np.sqrt(mean_squared_error(y_te_arr, preds))), 4)
+
+        # Validation via 5-fold CV on the (preprocessed) training set
+        cv = cross_validate(
+            m, X_tr, y_tr_arr,
+            cv=5,
+            scoring={"R2": make_scorer(r2_score), "RMSE": rmse_scorer},
+            n_jobs=-1,
+        )
+        val_r2   = round(float(np.abs(cv["test_R2"].mean())),   4)
+        val_rmse = round(float(np.abs(cv["test_RMSE"].mean())), 4)
+
+        rows.append({
+            "Model":     name,
+            "Val_R2":    val_r2,
+            "Test_R2":   test_r2,
+            "Val_RMSE":  val_rmse,
+            "Test_RMSE": test_rmse,
+        })
+        print(f"  {name:<22}  Val R2={val_r2:.4f}  Test R2={test_r2:.4f}"
+              f"  Val RMSE={val_rmse:.4f}  Test RMSE={test_rmse:.4f}")
+
+    return pd.DataFrame(rows)
 
 
 def plot_feature_importance(model, feature_names: list,
@@ -175,7 +307,7 @@ def plot_shap(model, X_transformed, feature_names: list,
         plt.tight_layout()
         plt.savefig(FIGURES_DIR / fname, dpi=100)
         plt.close()
-        print(f"Saved → figures/{fname}")
+        print(f"Saved -> figures/{fname}")
     except Exception as e:
         print(f"  SHAP skipped: {e}")
 
@@ -221,6 +353,18 @@ def evaluate_regression(run_shap: bool = False) -> pd.DataFrame:
 
     if run_shap:
         plot_shap(best_model, X_te, feature_names)
+
+    # ── Val vs Test comparison for all 4 models ───────────────────────────────
+    print("\n=== VALIDATION (CV) vs TEST - ALL 4 MODELS ===")
+    val_test = compute_val_test_metrics_all(MODELS_DIR, X_tr, X_te,
+                                            y_train, y_test)
+    val_test.to_csv(MODELS_DIR / "metrics_val_test.csv", index=False)
+    plot_val_test_comparison(val_test)
+
+    # ── MLP learning curves ───────────────────────────────────────────────────
+    mlp_path = MODELS_DIR / "mlp_regression.pkl"
+    if mlp_path.exists():
+        plot_mlp_learning_curves(joblib.load(mlp_path))
 
     top2 = results.nlargest(2, "R2")["Model"].tolist()
     print("\n=== 5-FOLD CV (top-2 models) ===")

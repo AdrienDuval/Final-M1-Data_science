@@ -4,10 +4,10 @@ import { motion } from "framer-motion";
 import { useTranslations } from "next-intl";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  ResponsiveContainer, Cell, Legend,
 } from "recharts";
 import { Trophy, CheckCircle2, Shield, Zap, Brain } from "lucide-react";
-import { api, ModelMetric, ClassificationMetric } from "@/lib/api";
+import { api, ModelMetric, ClassificationMetric, ValTestMetric } from "@/lib/api";
 import { fmt } from "@/lib/utils";
 import { Tip } from "@/components/Tooltip";
 import { modelLabel } from "@/lib/i18n-helpers";
@@ -51,13 +51,15 @@ export default function ModelsPage() {
   const tc = useTranslations("common");
   const tm = useTranslations("modelNames");
 
-  const [models, setModels]       = useState<ModelMetric[] | null>(null);
-  const [clfModels, setClfModels] = useState<ClassificationMetric[]>([]);
-  const [error, setError]         = useState(false);
+  const [models, setModels]           = useState<ModelMetric[] | null>(null);
+  const [clfModels, setClfModels]     = useState<ClassificationMetric[]>([]);
+  const [valTestData, setValTestData] = useState<ValTestMetric[]>([]);
+  const [error, setError]             = useState(false);
 
   useEffect(() => {
     api.metrics().then(d => setModels(d.models)).catch(() => setError(true));
     api.metricsClassification().then(d => setClfModels(d.models)).catch(() => {});
+    api.metricsValTest().then(d => setValTestData(d.models)).catch(() => {});
   }, []);
 
   if (error) return (
@@ -409,6 +411,98 @@ export default function ModelsPage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </motion.div>
+      )}
+
+      {valTestData.length > 0 && (
+        <motion.div
+          className="space-y-5"
+          initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div>
+            <h2 style={{ color: "var(--text-primary)" }}>{t("valTestTitle")}</h2>
+            <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{t("valTestSub")}</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-5">
+            {/* R² grouped bar chart */}
+            <div className="rounded-card p-5 border" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <h3 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{t("valTestR2Chart")}</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={valTestData.map(m => ({
+                    name: modelLabel(tm as (key: string) => string, m.Model),
+                    [t("valR2")]:  m.Val_R2,
+                    [t("testR2")]: m.Test_R2,
+                  }))}
+                  margin={{ left: 0, right: 16, top: 4, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                  <YAxis domain={[0.99, 1]} tickFormatter={v => v.toFixed(3)} tick={{ fontSize: 9 }} width={48} />
+                  <Tooltip content={<ChartTip />} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Bar dataKey={t("valR2")}  fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
+                  <Bar dataKey={t("testR2")} fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={18} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* RMSE grouped bar chart */}
+            <div className="rounded-card p-5 border" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <h3 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>{t("valTestRmseChart")}</h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart
+                  data={valTestData.map(m => ({
+                    name: modelLabel(tm as (key: string) => string, m.Model),
+                    [t("valRmse")]:  m.Val_RMSE,
+                    [t("testRmse")]: m.Test_RMSE,
+                  }))}
+                  margin={{ left: 0, right: 16, top: 4, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} />
+                  <YAxis tickFormatter={v => v.toFixed(1)} tick={{ fontSize: 9 }} width={40} />
+                  <Tooltip content={<ChartTip />} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Bar dataKey={t("valRmse")}  fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={18} />
+                  <Bar dataKey={t("testRmse")} fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={18} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Compact summary table */}
+          <div className="rounded-card border overflow-hidden" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                  {([tCols("model"), t("valR2"), t("testR2"), t("valRmse"), t("testRmse")] as string[]).map(h => (
+                    <th key={h} className="px-4 py-2 text-left font-semibold uppercase tracking-wider"
+                      style={{ color: "var(--text-muted)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {valTestData.map((m, i) => (
+                  <tr key={m.Model} className="border-b"
+                    style={{ borderColor: "var(--border)", background: i % 2 === 0 ? "var(--bg-card)" : "var(--bg-input)" }}>
+                    <td className="px-4 py-2 font-medium" style={{ color: "var(--text-primary)" }}>
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full" style={{ background: MODEL_COLORS[i] }} />
+                        {modelLabel(tm as (key: string) => string, m.Model)}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2 font-mono tabular-nums" style={{ color: "#3b82f6" }}>{fmt(m.Val_R2, 4)}</td>
+                    <td className="px-4 py-2 font-mono tabular-nums" style={{ color: "#f59e0b" }}>{fmt(m.Test_R2, 4)}</td>
+                    <td className="px-4 py-2 font-mono tabular-nums" style={{ color: "#3b82f6" }}>{fmt(m.Val_RMSE, 4)}</td>
+                    <td className="px-4 py-2 font-mono tabular-nums" style={{ color: "#f59e0b" }}>{fmt(m.Test_RMSE, 4)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </motion.div>
       )}
