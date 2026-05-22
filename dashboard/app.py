@@ -77,14 +77,29 @@ with st.spinner("Loading ML models from disk..."):
         st.sidebar.warning(f"Models not loaded: {e}\nRun `python main.py` first.")
 
 model_options = list(models_reg.keys()) if MODELS_LOADED else ["N/A"]
+# Determine the best model (highest R2) and set it as the active model by default.
+_best_model = None
+if MODELS_LOADED and not metrics_reg.empty and "R2" in metrics_reg.columns:
+    try:
+        _best_model = metrics_reg.loc[metrics_reg["R2"].idxmax(), "Model"]
+    except Exception:
+        _best_model = None
+if _best_model is None:
+    # Fallback preference order
+    for _pref in ["random_forest", "gradient_boosting", "linear_regression", "mlp"]:
+        if _pref in model_options:
+            _best_model = _pref
+            break
+if _best_model is None:
+    _best_model = model_options[0] if model_options else "N/A"
 if "active_model" not in st.session_state or st.session_state.active_model not in model_options:
-    st.session_state.active_model = model_options[0]
+    st.session_state.active_model = _best_model
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 st.sidebar.title("Marketing ROI")
 st.sidebar.caption("M1 Data Engineering · EFREI")
 st.sidebar.markdown("---")
-st.sidebar.markdown("Select a model in the **Predict**, **Budget Simulator**, or **Target Planner** tab.")
+st.sidebar.markdown("The dashboard selects the best-performing regression model automatically.")
 
 # ── Prediction helpers ────────────────────────────────────────────────────────
 def predict_reg(model_name, tv, radio, sm, inf):
@@ -103,22 +118,16 @@ def rf_prediction_distribution(tv, radio, sm, inf):
 
 # ── Model selector widget ─────────────────────────────────────────────────────
 def model_selector(key_suffix=""):
+    """Return the chosen regression model.
+
+    The UI selection was removed — the dashboard always uses the best-performing
+    model by default. This helper ensures `st.session_state.active_model` is set
+    and returns it (no widget rendered).
     """
-    Horizontal radio for selecting the active regression model.
-    No pre-computation of OOR — that only matters at prediction time.
-    """
-    active = st.session_state.active_model
-    idx    = model_options.index(active) if active in model_options else 0
-    selected = st.radio(
-        "Regression model",
-        options=model_options,
-        format_func=fmt,
-        index=idx,
-        horizontal=True,
-        key=f"model_radio_{key_suffix}",
-    )
-    st.session_state.active_model = selected
-    return selected
+    # Ensure active_model is present and return it (no UI control).
+    if "active_model" not in st.session_state:
+        st.session_state.active_model = model_options[0] if model_options else "N/A"
+    return st.session_state.active_model
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
@@ -135,33 +144,45 @@ with tab1:
     c3.metric("Missing (Sales)", int(df["Sales"].isnull().sum()))
     c4.metric("Classes", df["perf_class"].nunique() if "perf_class" in df else "-")
 
-    st.subheader("Feature Distributions")
     num_cols = ["TV", "Radio", "Social Media", "Sales"]
-    fig, axes = plt.subplots(2, 2, figsize=(10, 6))
-    for ax, col in zip(axes.flatten(), num_cols):
-        sns.histplot(df[col].dropna(), kde=True, ax=ax, color="steelblue", bins=40)
-        ax.set_title(col)
-    plt.tight_layout(); st.pyplot(fig); plt.close()
 
-    st.subheader("Correlation Heatmap")
-    fig2, ax2 = plt.subplots(figsize=(6, 4))
-    sns.heatmap(df[num_cols].corr(), annot=True, fmt=".2f",
-                cmap="coolwarm", ax=ax2, vmin=-1, vmax=1)
-    plt.tight_layout(); st.pyplot(fig2); plt.close()
+    # ── Row 1: Feature Distributions | Correlation Heatmap ───────────────────
+    row1_l, row1_r = st.columns(2)
 
-    st.subheader("Sales by Influencer Tier")
-    fig3, ax3 = plt.subplots(figsize=(7, 4))
-    order = [o for o in ["Mega", "Macro", "Micro", "Nano"] if o in df["Influencer"].unique()]
-    sns.boxplot(data=df, x="Influencer", y="Sales", order=order, palette="Set2", ax=ax3)
-    plt.tight_layout(); st.pyplot(fig3); plt.close()
+    with row1_l:
+        st.subheader("Feature Distributions")
+        fig, axes = plt.subplots(2, 2, figsize=(6, 4))
+        for ax, col in zip(axes.flatten(), num_cols):
+            sns.histplot(df[col].dropna(), kde=True, ax=ax, color="steelblue", bins=40)
+            ax.set_title(col, fontsize=9)
+            ax.tick_params(labelsize=7)
+        plt.tight_layout(); st.pyplot(fig); plt.close()
 
-    if "perf_class" in df.columns:
-        st.subheader("Campaign Performance Class Distribution")
-        counts = df["perf_class"].value_counts()
-        fig4, ax4 = plt.subplots(figsize=(5, 3))
-        counts.plot(kind="bar", color=["#2ecc71", "#f39c12", "#e74c3c"], ax=ax4, edgecolor="k")
-        ax4.set_ylabel("Count"); plt.xticks(rotation=0)
-        plt.tight_layout(); st.pyplot(fig4); plt.close()
+    with row1_r:
+        st.subheader("Correlation Heatmap")
+        fig2, ax2 = plt.subplots(figsize=(6, 4))
+        sns.heatmap(df[num_cols].corr(), annot=True, fmt=".2f",
+                    cmap="coolwarm", ax=ax2, vmin=-1, vmax=1)
+        plt.tight_layout(); st.pyplot(fig2); plt.close()
+
+    # ── Row 2: Sales by Influencer | Class Distribution ───────────────────────
+    row2_l, row2_r = st.columns(2)
+
+    with row2_l:
+        st.subheader("Sales by Influencer Tier")
+        fig3, ax3 = plt.subplots(figsize=(6, 4))
+        order = [o for o in ["Mega", "Macro", "Micro", "Nano"] if o in df["Influencer"].unique()]
+        sns.boxplot(data=df, x="Influencer", y="Sales", order=order, palette="Set2", ax=ax3)
+        plt.tight_layout(); st.pyplot(fig3); plt.close()
+
+    with row2_r:
+        if "perf_class" in df.columns:
+            st.subheader("Campaign Performance Class Distribution")
+            counts = df["perf_class"].value_counts()
+            fig4, ax4 = plt.subplots(figsize=(6, 4))
+            counts.plot(kind="bar", color=["#2ecc71", "#f39c12", "#e74c3c"], ax=ax4, edgecolor="k")
+            ax4.set_ylabel("Count"); plt.xticks(rotation=0)
+            plt.tight_layout(); st.pyplot(fig4); plt.close()
 
 # ── TAB 2 — Model Comparison ──────────────────────────────────────────────────
 with tab2:
@@ -174,12 +195,36 @@ with tab2:
             disp = metrics_reg.copy()
             if "Model" in disp.columns:
                 disp["Model"] = disp["Model"].apply(fmt)
-            st.dataframe(
-                disp.style
-                    .highlight_max(subset=["R2"] if "R2" in disp.columns else None, color="#c6efce")
-                    .highlight_min(subset=["RMSE","MAE"] if "RMSE" in disp.columns else None, color="#c6efce"),
-                width="stretch",
-            )
+
+            # Build a Styler so we can emphasize the best model and increase contrast
+            sty = disp.style
+            # Highlight best R2 and lowest error metrics using amber (higher contrast on dark bg)
+            if "R2" in disp.columns:
+                sty = sty.highlight_max(subset=["R2"], color="#2D1B69")
+            if "RMSE" in disp.columns:
+                sty = sty.highlight_min(subset=["RMSE","MAE"], color="#2D1B69")
+
+            # Make the Model column text white and give it a subtle dark background for contrast
+            try:
+                active = st.session_state.get("active_model", None)
+                # Highlight the active (best) model row in the Model column
+                def _highlight_active(val):
+                    # Accent the active model with a blue background but use light-gray text (not pure white)
+                    return "background-color: #1f6feb; color: #cbd5e1; font-weight: 600" if active and val == fmt(active) else ""
+                sty = sty.applymap(_highlight_active, subset=["Model"])
+                # Ensure model names are readable by setting a dark background for the column
+                # and use a softer light-gray text color instead of pure white
+                sty = sty.set_properties(subset=["Model"], **{"background-color": "#0b1220", "color": "#cbd5e1"})
+                # Slightly darken header cells for contrast and avoid pure white text
+                sty = sty.set_table_styles([
+                    {"selector": "th", "props": [("background-color", "#0b1220"),("color","#cbd5e1")]}
+                ])
+            except Exception:
+                # If styling fails for any reason, fall back to the basic styler
+                pass
+
+            st.dataframe(sty, width="stretch")
+
             if "R2" in metrics_reg.columns:
                 fig5, ax5 = plt.subplots(figsize=(6, 3))
                 metrics_reg.assign(Model=metrics_reg["Model"].apply(fmt)).plot(
@@ -199,7 +244,7 @@ with tab2:
                 disp["Model"] = disp["Model"].apply(fmt)
             st.dataframe(
                 disp.style.highlight_max(
-                    subset=["F1-macro"] if "F1-macro" in disp.columns else None, color="#c6efce"),
+                    subset=["F1-macro"] if "F1-macro" in disp.columns else None, color="#2D1B69"),
                 width="stretch",
             )
             if "F1-macro" in metrics_clf.columns:
@@ -219,16 +264,24 @@ with tab3:
     shap_img = ROOT / "figures" / "shap_summary.png"
     fi_img   = ROOT / "figures" / "feature_importance.png"
 
-    if shap_img.exists():
+    # ── Row 1: SHAP Summary | Native Feature Importance ──────────────────────
+    row1_l, row1_r = st.columns(2)
+
+    with row1_l:
         st.subheader("SHAP Summary Plot")
-        st.image(str(shap_img), width="stretch")
-    else:
-        st.info("SHAP plot not found. Run `python main.py` option 3 first.")
+        if shap_img.exists():
+            st.image(str(shap_img), use_container_width=True)
+        else:
+            st.info("SHAP plot not found. Run `python main.py` option 3 first.")
 
-    if fi_img.exists():
+    with row1_r:
         st.subheader("Native Feature Importance")
-        st.image(str(fi_img), width="stretch")
+        if fi_img.exists():
+            st.image(str(fi_img), use_container_width=True)
+        else:
+            st.info("Feature importance plot not found.")
 
+    # ── Row 2: Live importance bar chart ─────────────────────────────────────
     best = st.session_state.active_model
     if MODELS_LOADED and best in models_reg:
         m = models_reg[best]
@@ -238,11 +291,14 @@ with tab3:
                    else np.abs(m.coef_).flatten())
             imp = imp[:len(feat_names)]
             df_imp = pd.DataFrame({"Feature": feat_names, "Importance": imp}).sort_values("Importance")
-            st.subheader(f"Live Importance: {fmt(best)}")
-            fig7, ax7 = plt.subplots(figsize=(7, 4))
-            ax7.barh(df_imp["Feature"], df_imp["Importance"], color="steelblue", edgecolor="k")
-            ax7.set_xlabel("Importance"); plt.tight_layout()
-            st.pyplot(fig7); plt.close()
+
+            row2_l, row2_r = st.columns(2)
+            with row2_l:
+                st.subheader(f"Live Importance: {fmt(best)}")
+                fig7, ax7 = plt.subplots(figsize=(6, 4))
+                ax7.barh(df_imp["Feature"], df_imp["Importance"], color="steelblue", edgecolor="k")
+                ax7.set_xlabel("Importance"); plt.tight_layout()
+                st.pyplot(fig7); plt.close()
 
 # ── TAB 4 — Predict ───────────────────────────────────────────────────────────
 with tab4:
@@ -405,7 +461,8 @@ with tab6:
             # Tree models (RF, GB) are hard-capped at their training output ceiling;
             # Linear Regression and MLP can extrapolate so we allow 3× the training max.
             _max_train_sales = float(df["Sales"].max())
-            _cur_ip_model    = st.session_state.get("ip_model", model_options[0])
+            # Use the active (best) model — users no longer choose the model manually.
+            _cur_ip_model    = st.session_state.get("active_model", model_options[0])
             _target_ceiling  = float(
                 _max_train_sales if _cur_ip_model in TREE_MODELS
                 else round(_max_train_sales * 3.0 / 10) * 10
@@ -424,10 +481,7 @@ with tab6:
             )
             ip_inf = st.selectbox("Influencer Tier", influencer_options(), key="ip_inf",
                 help="Influencer tier to assume for the budget recommendation.")
-            ip_model = st.radio(
-                "Model for optimization", model_options,
-                format_func=fmt, horizontal=True, key="ip_model",
-                help="Which regression model the optimizer uses internally.")
+            # Model selection removed: dashboard automatically uses the best model.
             max_budget = st.number_input(
                 "Max total budget ($M)", value=400.0, min_value=10.0, step=10.0,
                 help="Upper bound on TV + Radio + Social Media combined spend.")
@@ -440,8 +494,9 @@ with tab6:
             # cannot predict beyond the highest Sales value seen during training.
             # If the target exceeds that ceiling, the optimizer converges to garbage.
             # Fix: auto-switch to Linear Regression for out-of-range targets.
-            target_oor = target_sales > max_train_sales and ip_model in TREE_MODELS
-            effective_ip_model = "linear_regression" if target_oor else ip_model
+            current_model = st.session_state.get("active_model", model_options[0])
+            target_oor = target_sales > max_train_sales and current_model in TREE_MODELS
+            effective_ip_model = "linear_regression" if target_oor else current_model
 
             if target_oor:
                 st.warning(
@@ -495,7 +550,7 @@ with tab6:
                         f"training max ${max_train_sales:,.0f}M. Linear Regression can extrapolate; "
                         "tree models are hard-capped at their training output range."
                     )
-                elif opt_used != ip_model:
+                elif opt_used != st.session_state.get("active_model", model_options[0]):
                     st.caption(f"⚡ Optimizer used **{fmt(opt_used)}** (Linear Regression) "
                                "because the solution is outside training input bounds.")
 
