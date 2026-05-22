@@ -1,8 +1,12 @@
+const createNextIntlPlugin = require("next-intl/plugin");
+
 /** @type {import('next').NextConfig} */
 
 // In Docker the API container is reachable via its service name.
 // Locally it defaults to localhost:8000.
 const API_URL = process.env.API_URL || "http://localhost:8000";
+
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig = {
   async rewrites() {
@@ -15,4 +19,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withNextIntl(nextConfig);

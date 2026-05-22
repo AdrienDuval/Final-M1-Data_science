@@ -1,5 +1,7 @@
 import sys
+import signal
 import subprocess
+import time
 from pathlib import Path
 
 ROOT      = Path(__file__).parent
@@ -119,6 +121,66 @@ def step_dashboard():
     )
 
 
+# API model files produced by src/train.py (used by FastAPI)
+API_MODELS = [
+    "linear_regression.pkl",
+    "random_forest.pkl",
+    "gradient_boosting.pkl",
+    "mlp.pkl",
+]
+
+def step_nextjs():
+    _header("STEP — Next.js Dashboard + FastAPI")
+
+    # Auto-train API models if missing
+    if not _all_exist(API_MODELS, MODELS):
+        missing = [f for f in API_MODELS if not (MODELS / f).exists()]
+        print(f"  Missing {len(missing)} API model file(s):")
+        for f in missing:
+            print(f"    • {f}")
+        print("\n  Training models (src/train.py)…")
+        result = subprocess.run([sys.executable, str(SRC / "train.py")], cwd=str(ROOT))
+        if result.returncode != 0:
+            print("\n[ERROR] Training failed. Aborting.")
+            sys.exit(result.returncode)
+    else:
+        print("  ✓ API models found — skipping training.")
+
+    # Launch FastAPI
+    print("\n  Starting FastAPI on http://localhost:8000 …")
+    api_proc = subprocess.Popen(
+        ["uvicorn", "api.main:app", "--reload", "--port", "8000"],
+        cwd=str(ROOT),
+    )
+
+    # Give the API a moment to bind before starting the frontend
+    time.sleep(2)
+
+    # Launch Next.js dev server
+    dashboard = ROOT / "dashboard-next"
+    print("  Starting Next.js on http://localhost:3000 …")
+    next_proc = subprocess.Popen(
+        ["npm", "run", "dev"],
+        cwd=str(dashboard),
+        shell=True,
+    )
+
+    print("\n  ✓ Both servers running.")
+    print("    API  →  http://localhost:8000")
+    print("    App  →  http://localhost:3000")
+    print("\n  Press Ctrl+C to stop both.\n")
+
+    try:
+        api_proc.wait()
+    except KeyboardInterrupt:
+        print("\n  Shutting down…")
+        api_proc.terminate()
+        next_proc.terminate()
+        api_proc.wait()
+        next_proc.wait()
+        print("  Stopped.")
+
+
 # ── Menu ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -141,17 +203,18 @@ def main():
 
     # Mode selection
     _header("SELECT MODE")
-    print("  1) Full pipeline  (train → evaluate → dashboard)")
+    print("  1) Full pipeline       (train → evaluate → Streamlit dashboard)")
     print("  2) Train only")
     print("  3) Evaluate only")
-    print("  4) Dashboard only")
-    print("  5) Exit")
+    print("  4) Streamlit dashboard only")
+    print("  5) Next.js dashboard + FastAPI  ← new")
+    print("  6) Exit")
 
     while True:
-        choice = input("\n  Enter choice [1-5]: ").strip()[:1]
-        if choice in ("1", "2", "3", "4", "5"):
+        choice = input("\n  Enter choice [1-6]: ").strip()[:1]
+        if choice in ("1", "2", "3", "4", "5", "6"):
             break
-        print("  ✗ Invalid — please enter a number between 1 and 5.")
+        print("  ✗ Invalid — please enter a number between 1 and 6.")
 
     if choice == "1":
         step_train()
@@ -165,6 +228,8 @@ def main():
     elif choice == "4":
         step_dashboard()
     elif choice == "5":
+        step_nextjs()
+    elif choice == "6":
         print("  Bye.")
         sys.exit(0)
 

@@ -1,103 +1,217 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* === GLOBAL DESIGN SYSTEM === */
-:root {
-  /* Accent Colors */
-  --accent: #e5534b;
-  --accent-hover: #cc3f3c;
+/* ═══════════════════════════════════════════════════════════
+   DESIGN TOKENS — Dark (default)
+═══════════════════════════════════════════════════════════ */
+:root,
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg-primary:   #07090e;
+  --bg-card:      #0e1525;
+  --bg-input:     #141e33;
+  --bg-hover:     #1a263d;
 
-  /* Background Colors */
-  --bg-primary: #0f0f0f;
-  --bg-card: #1a1a1a;
-  --bg-input: #252525;
+  /* Borders */
+  --border:        rgba(255,255,255,0.07);
+  --border-strong: rgba(255,255,255,0.13);
 
-  /* Border & Divider */
-  --border: #2a2a2a;
+  /* Accent */
+  --accent:       #3b82f6;
+  --accent-hover: #2563eb;
+  --accent-dim:   rgba(59,130,246,0.12);
+  --accent-glow:  rgba(59,130,246,0.30);
 
-  /* Text Colors */
-  --text-primary: #ffffff;
-  --text-muted: #888888;
+  /* Text */
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #475569;
 
-  /* Status Colors */
-  --green: #22c55e;
-  --red: #ef4444;
-  --orange: #f59e0b;
+  /* Status */
+  --green:      #10b981;
+  --green-dim:  rgba(16,185,129,0.12);
+  --red:        #ef4444;
+  --red-dim:    rgba(239,68,68,0.12);
+  --orange:     #f59e0b;
+  --orange-dim: rgba(245,158,11,0.12);
+  --purple:     #8b5cf6;
+  --cyan:       #06b6d4;
 
-  /* Legacy fallbacks */
-  --bg: #0f0f0f;
-  --surface: #1a1a1a;
-  --text: #ffffff;
-  --brand: #e5534b;
+  /* Channel colours */
+  --ch-tv:    #3b82f6;
+  --ch-radio: #8b5cf6;
+  --ch-sm:    #06b6d4;
+
+  /* Component-specific */
+  --nav-bg:       rgba(7,9,14,0.88);
+  --nav-border:   rgba(255,255,255,0.06);
+  --tab-hover-bg: rgba(255,255,255,0.04);
+  --track-bg:     rgba(255,255,255,0.07);
+
+  /* Legacy compat */
+  --bg:      #07090e;
+  --surface: #0e1525;
+  --text:    #f1f5f9;
+  --brand:   #3b82f6;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   DESIGN TOKENS — Light
+═══════════════════════════════════════════════════════════ */
+[data-theme="light"] {
+  /* Backgrounds */
+  --bg-primary:   #f0f4f8;
+  --bg-card:      #ffffff;
+  --bg-input:     #f1f5f9;
+  --bg-hover:     #e2e8f0;
+
+  /* Borders */
+  --border:        rgba(15,23,42,0.09);
+  --border-strong: rgba(15,23,42,0.16);
+
+  /* Accent */
+  --accent:       #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-dim:   rgba(37,99,235,0.10);
+  --accent-glow:  rgba(37,99,235,0.25);
+
+  /* Text */
+  --text-primary:   #0f172a;
+  --text-secondary: #334155;
+  --text-muted:     #64748b;
+
+  /* Status */
+  --green:      #059669;
+  --green-dim:  rgba(5,150,105,0.12);
+  --red:        #dc2626;
+  --red-dim:    rgba(220,38,38,0.10);
+  --orange:     #d97706;
+  --orange-dim: rgba(217,119,6,0.12);
+  --purple:     #7c3aed;
+  --cyan:       #0891b2;
+
+  /* Channel colours */
+  --ch-tv:    #2563eb;
+  --ch-radio: #7c3aed;
+  --ch-sm:    #0891b2;
+
+  /* Component-specific */
+  --nav-bg:       rgba(240,244,248,0.92);
+  --nav-border:   rgba(15,23,42,0.09);
+  --tab-hover-bg: rgba(15,23,42,0.05);
+  --track-bg:     rgba(15,23,42,0.09);
+
+  /* Legacy compat */
+  --bg:      #f0f4f8;
+  --surface: #ffffff;
+  --text:    #0f172a;
+  --brand:   #2563eb;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   BASE RESET
+═══════════════════════════════════════════════════════════ */
 * { box-sizing: border-box; }
 
 html, body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.15s ease;
 }
 
-/* === TYPOGRAPHY SCALE === */
+/* ═══════════════════════════════════════════════════════════
+   TYPOGRAPHY
+═══════════════════════════════════════════════════════════ */
 h1 {
-  font-size: 2rem;
+  font-size: 1.875rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
 }
 
 h2 {
-  font-size: 1.25rem;
+  font-size: 1.125rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
 h3 {
-  font-size: 1.125rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
 .text-label {
-  font-size: 0.8rem;
+  font-size: 0.7rem;
   color: var(--text-muted);
-  font-weight: 500;
-  letter-spacing: 0.05em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-/* === SUBTLE SCROLLBAR === */
-::-webkit-scrollbar { width: 8px; height: 8px; }
+/* Tabular numbers for all monetary/stat values */
+.tabular-nums,
+[class*="font-mono"] {
+  font-feature-settings: "tnum" 1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 4px;
-  border: 2px solid var(--bg-primary);
+  background: var(--border-strong);
+  border-radius: 99px;
 }
-::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-/* === GLASS MORPHISM CARD === */
+/* ═══════════════════════════════════════════════════════════
+   CARDS & GLASS
+═══════════════════════════════════════════════════════════ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}
+
 .glass {
-  background: rgba(26, 26, 26, 0.7);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
 }
 
-/* === RECHARTS CUSTOMIZATION === */
+[data-theme="dark"] .glass {
+  background: rgba(14,21,37,0.82);
+}
+
+.card-accent {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--accent);
+  border-radius: 0.875rem;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RECHARTS OVERRIDES
+═══════════════════════════════════════════════════════════ */
 .recharts-cartesian-grid-horizontal line,
 .recharts-cartesian-grid-vertical line {
   stroke: var(--border);
-  stroke-opacity: 0.6;
 }
 
-.recharts-text {
-  fill: var(--text-muted);
-  font-size: 12px;
+.recharts-text,
+.recharts-cartesian-axis-tick-value {
+  fill: var(--text-muted) !important;
+  font-size: 11px;
   font-family: 'Inter', sans-serif;
 }
 
@@ -105,61 +219,158 @@ h3 {
 
 .recharts-default-tooltip {
   background: var(--bg-card) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 8px !important;
+  border: 1px solid var(--border-strong) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.15) !important;
 }
 
-/* === ANIMATIONS === */
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.recharts-legend-item-text {
+  color: var(--text-secondary) !important;
+  font-size: 12px !important;
 }
 
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ═══════════════════════════════════════════════════════════
+   RANGE INPUT GLOBAL RESET
+═══════════════════════════════════════════════════════════ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ANIMATIONS
+═══════════════════════════════════════════════════════════ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes fadeIn {
   from { opacity: 0; }
-  to { opacity: 1; }
+  to   { opacity: 1; }
 }
 
-@keyframes countUp {
-  from { opacity: 0; }
-  to { opacity: 1; }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
 }
 
 @keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+  0%   { background-position: -800px 0; }
+  100% { background-position:  800px 0; }
+}
+
+@keyframes pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
 }
 
 @keyframes underlineScale {
   from { transform: scaleX(0); }
-  to { transform: scaleX(1); }
+  to   { transform: scaleX(1); }
 }
 
-.animate-underline {
-  animation: underlineScale 0.3s ease-out;
-  transform-origin: left;
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
+/* ─ Utility classes ─ */
+.animate-fade-in-up  { animation: fadeInUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-fade-in     { animation: fadeIn   0.4s ease-out both; }
+.animate-scale-in    { animation: scaleIn  0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-underline   { animation: underlineScale 0.25s ease-out; transform-origin: left; }
+
+/* Shimmer skeleton */
 .animate-shimmer {
-  background: linear-gradient(90deg, var(--bg-card) 0%, var(--border) 50%, var(--bg-card) 100%);
-  background-size: 1000px 100%;
-  animation: shimmer 2s infinite;
+  background: linear-gradient(90deg,
+    var(--bg-card) 0%,
+    var(--track-bg) 50%,
+    var(--bg-card) 100%);
+  background-size: 800px 100%;
+  animation: shimmer 1.8s infinite;
 }
 
+/* Stagger delay helpers */
+.delay-100 { animation-delay: 0.1s; }
+.delay-200 { animation-delay: 0.2s; }
+.delay-300 { animation-delay: 0.3s; }
+.delay-400 { animation-delay: 0.4s; }
+.delay-500 { animation-delay: 0.5s; }
+
+/* ═══════════════════════════════════════════════════════════
+   GRADIENT BACKGROUNDS
+═══════════════════════════════════════════════════════════ */
+.bg-gradient-hero {
+  background: radial-gradient(ellipse 80% 60% at 50% -20%,
+    rgba(59,130,246,0.15) 0%,
+    transparent 60%);
+}
+
+[data-theme="light"] .bg-gradient-hero {
+  background: radial-gradient(ellipse 80% 60% at 50% -20%,
+    rgba(37,99,235,0.08) 0%,
+    transparent 60%);
+}
+
+.bg-gradient-card {
+  background: linear-gradient(135deg,
+    rgba(59,130,246,0.06) 0%,
+    rgba(139,92,246,0.03) 100%);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INTERACTIVE STATES
+═══════════════════════════════════════════════════════════ */
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  border-radius: 0.625rem;
+  padding: 0.625rem 1.5rem;
+  transition: background 0.15s, box-shadow 0.15s, transform 0.1s;
+  cursor: pointer;
+  border: none;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: 0 0 20px var(--accent-glow);
+  transform: translateY(-1px);
+}
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 500;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ROUNDED CARD HELPER (used by many pages)
+═══════════════════════════════════════════════════════════ */
+.rounded-card {
+  border-radius: 0.875rem;
+  transition: background-color 0.25s ease, border-color 0.25s ease;
+}

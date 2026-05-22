@@ -1,68 +1,59 @@
 "use client";
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { useTranslations } from "next-intl";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
 } from "recharts";
-import { Trophy, CheckCircle2 } from "lucide-react";
+import { Trophy, CheckCircle2, Shield, Zap, Brain } from "lucide-react";
 import { api, ModelMetric, ClassificationMetric } from "@/lib/api";
-import { fmt, CHART_COLORS } from "@/lib/utils";
+import { fmt } from "@/lib/utils";
+import { Tip } from "@/components/Tooltip";
+import { modelLabel } from "@/lib/i18n-helpers";
 
-const MODEL_LABELS: Record<string, string> = {
-  linear_regression: "Linear Reg.",
-  random_forest:     "Random Forest",
-  gradient_boosting: "Gradient Boost",
-  xgboost:           "XGBoost",
-  mlp:               "MLP (DL)",
-};
+const MODEL_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981"];
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+function ChartTip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  label?: string | number;
+  payload?: Array<{ name?: string; value?: unknown; color?: string }>;
+}) {
   if (!active || !payload?.length) return null;
   return (
-    <div
-      className="border rounded-lg px-3 py-2 shadow-xl"
-      style={{
-        backgroundColor: "var(--bg-card)",
-        borderColor: "var(--border)",
-      }}
-    >
-      <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>
-        {label}
-      </p>
-      {payload.map((p: any) => (
-        <p key={p.name} className="text-sm font-semibold" style={{ color: p.color }}>
-          {p.name}: {fmt(p.value, 4)}
+    <div className="glass rounded-xl px-3 py-2 shadow-xl text-xs" style={{ borderColor: "var(--border-strong)" }}>
+      <p className="mb-1" style={{ color: "var(--text-muted)" }}>{label != null ? String(label) : ""}</p>
+      {payload.map((p) => (
+        <p key={String(p.name)} className="font-semibold tabular-nums" style={{ color: p.color || "var(--accent)" }}>
+          {p.name}: {fmt(p.value as number, 4)}
         </p>
       ))}
     </div>
   );
-};
-
-function MetricBadge({ value, best, low }: { value: number; best: number; low?: boolean }) {
-  const isBest = Math.abs(value - best) < 1e-6;
-  return (
-    <span
-      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-mono font-semibold transition-colors
-        ${isBest
-          ? "text-white ring-1"
-          : "text-white"
-        }`}
-      style={{
-        backgroundColor: isBest ? "var(--accent)" : "transparent",
-        color: isBest ? "white" : "var(--text-primary)",
-        borderColor: isBest ? "var(--accent)" : "transparent",
-      }}
-    >
-      {isBest && <CheckCircle2 className="w-3 h-3" />}
-      {fmt(value, 4)}
-    </span>
-  );
 }
 
+const cardVariants = {
+  hidden:  { opacity: 0, y: 16 },
+  visible: (i: number) => ({
+    opacity: 1, y: 0,
+    transition: { delay: i * 0.08, duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+  }),
+};
+
 export default function ModelsPage() {
-  const [models, setModels] = useState<ModelMetric[] | null>(null);
+  const t = useTranslations("models");
+  const tt = useTranslations("models.tips");
+  const tCols = useTranslations("models.cols");
+  const tc = useTranslations("common");
+  const tm = useTranslations("modelNames");
+
+  const [models, setModels]       = useState<ModelMetric[] | null>(null);
   const [clfModels, setClfModels] = useState<ClassificationMetric[]>([]);
-  const [error, setError] = useState(false);
+  const [error, setError]         = useState(false);
 
   useEffect(() => {
     api.metrics().then(d => setModels(d.models)).catch(() => setError(true));
@@ -72,279 +63,391 @@ export default function ModelsPage() {
   if (error) return (
     <div className="flex items-center justify-center h-64">
       <p style={{ color: "var(--text-muted)" }} className="text-sm">
-        API unavailable — run the FastAPI server first.
+        {tc("apiUnavailable")}
       </p>
     </div>
   );
 
   if (!models) return (
-    <div className="space-y-6 animate-pulse">
-      <div className="h-10 w-48 rounded-lg" style={{ backgroundColor: "var(--bg-card)" }} />
-      <div className="h-72 rounded-xl" style={{ backgroundColor: "var(--bg-card)" }} />
-      <div className="h-72 rounded-xl" style={{ backgroundColor: "var(--bg-card)" }} />
+    <div className="space-y-6">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="h-28 rounded-card animate-shimmer" />
+      ))}
     </div>
   );
 
-  const bestR2   = Math.max(...models.map(m => m.r2));
-  const best     = models.find(m => m.r2 === bestR2)!;
+  const bestR2 = Math.max(...models.map(m => m.r2));
+  const best   = models.find(m => m.r2 === bestR2)!;
+  const bestAccLabel = modelLabel(tm as (key: string) => string, best.name);
+
+  const regressionColKeys = ["model", "r2", "rmse", "mae", "cvR2"] as const;
+  const regressionTipKeys: (null | "r2" | "rmse" | "mae" | "cvR2")[] = [
+    null, "r2", "rmse", "mae", "cvR2",
+  ];
 
   const chartData = models.map((m, i) => ({
-    name:  MODEL_LABELS[m.name] ?? m.label,
+    name:  modelLabel(tm as (key: string) => string, m.name),
     R2:    m.r2,
     RMSE:  m.rmse,
     MAE:   m.mae,
-    fill:  CHART_COLORS[i % CHART_COLORS.length],
+    fill:  MODEL_COLORS[i % MODEL_COLORS.length],
   }));
+
+  const clfHeaders = ["model", "accuracy", "f1", "roc"] as const;
+  const clfTipKeys: ("accuracy" | "f1" | "roc")[] = ["accuracy", "f1", "roc"];
+
+  const minCvStd = Math.min(...models.map(m => m.cv_r2_std));
+  const mlpR2 = models.find(x => x.name === "mlp")?.r2 ?? "—";
+  const mlpr2Str = typeof mlpR2 === "number" ? fmt(mlpR2, 4) : String(mlpR2);
+
+  const r2Legend = tCols("r2");
+  const f1Legend = tCols("f1");
+
+  const nameMarker = "\uFFF0";
+  const bestModelParts = t("bestModel", { name: nameMarker }).split(nameMarker);
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1>Model Comparison</h1>
+
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1"
+          style={{ color: "var(--accent)" }}>{t("eyebrow")}</p>
+        <h1 style={{ color: "var(--text-primary)" }}>{t("title")}</h1>
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-          4 models evaluated on the same 20% test split ({MODEL_LABELS[best.name] ?? best.label} leads)
+          {t("subtitle", { best: bestAccLabel, r2: fmt(best.r2, 4) })}
         </p>
-      </div>
+      </motion.div>
 
-      {/* Best model banner */}
-      <div
-        className="flex items-center gap-4 rounded-xl px-6 py-4 border"
-        style={{
-          backgroundColor: "var(--bg-card)",
-          borderColor: "var(--accent)",
-        }}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        className="rounded-card p-6 border relative overflow-hidden"
+        style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--accent)", boxShadow: "0 0 40px rgba(59,130,246,0.06)" }}
       >
-        <div
-          className="p-2 rounded-lg"
-          style={{ backgroundColor: `var(--accent)20` }}
-        >
-          <Trophy className="w-5 h-5" style={{ color: "var(--accent)" }} />
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: "radial-gradient(circle at 100% 0%, rgba(59,130,246,0.07) 0%, transparent 55%)" }} />
+        <div className="flex items-center gap-4 relative">
+          <div className="p-3 rounded-xl" style={{ background: "var(--accent-dim)" }}>
+            <Trophy className="w-6 h-6" style={{ color: "var(--accent)" }} />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              {bestModelParts[0]}
+              <span style={{ color: "var(--accent)" }}>{bestAccLabel}</span>
+              {bestModelParts.slice(1).join("")}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+              {t("bestStats", {
+                r2: fmt(best.r2, 4),
+                rmse: fmt(best.rmse, 4),
+                mae: fmt(best.mae, 4),
+                cvMean: fmt(best.cv_r2_mean, 4),
+                cvStd: fmt(best.cv_r2_std, 4),
+              })}
+            </p>
+          </div>
+          <div className="hidden lg:flex items-center gap-4">
+            <div className="text-center">
+              <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--green)" }}>
+                {(best.r2 * 100).toFixed(1)}%
+              </p>
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{t("r2Score")}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold tabular-nums" style={{ color: "var(--accent)" }}>
+                {(best.cv_r2_mean * 100).toFixed(1)}%
+              </p>
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>{t("cvR2")}</p>
+            </div>
+          </div>
         </div>
-        <div>
-          <p className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Best model:{" "}
-            <span style={{ color: "var(--accent)" }}>
-              {MODEL_LABELS[best.name] ?? best.label}
-            </span>
-          </p>
-          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-            R² = {best.r2} · RMSE = {best.rmse} · MAE = {best.mae} · CV R² = {best.cv_r2_mean} ± {best.cv_r2_std}
-          </p>
-        </div>
+      </motion.div>
+
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          {
+            icon: Shield,
+            titleKey: "predAccuracy",
+            subKey: "predAccuracySub",
+            value: `${(best.r2 * 100).toFixed(2)}%`,
+            color: "var(--green)",
+            i: 0,
+          },
+          {
+            icon: Zap,
+            titleKey: "cvStability",
+            subKey: "cvStabilitySub",
+            value: `±${(best.cv_r2_std * 100).toFixed(3)}%`,
+            color: "var(--accent)",
+            i: 1,
+          },
+          {
+            icon: Brain,
+            titleKey: "avgRmse",
+            subKey: "avgRmseSub",
+            value: `${best.rmse}M`,
+            color: "var(--orange)",
+            i: 2,
+          },
+        ].map(({ icon: Icon, titleKey, subKey, value, color, i }) => (
+          <motion.div key={titleKey}
+            custom={i} initial="hidden" animate="visible" variants={cardVariants}
+            className="rounded-card p-5 border"
+            style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}
+          >
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl" style={{ background: `${color}1a` }}>
+                <Icon className="w-4 h-4" style={{ color }} strokeWidth={1.8} />
+              </div>
+              <div>
+                <p className="text-label mb-1">{t(titleKey)}</p>
+                <p className="text-2xl font-bold tabular-nums" style={{ color }}>
+                  {value}
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{t(subKey)}</p>
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
 
-      {/* Metrics table */}
-      <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
-        <div className="px-6 py-4 border-b" style={{ borderColor: "var(--border)" }}>
-          <h2>Metrics — Test Set</h2>
-        </div>
-        <div className="overflow-x-auto">
+      <div className="grid grid-cols-5 gap-6">
+
+        <motion.div
+          className="col-span-3 rounded-card border overflow-hidden"
+          style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="px-5 py-4 border-b" style={{ borderColor: "var(--border)" }}>
+            <h2 style={{ color: "var(--text-primary)" }}>{t("regressionTable")}</h2>
+          </div>
           <table className="w-full text-sm">
             <thead>
-              <tr style={{ borderColor: "var(--border)" }} className="border-b">
-                {["Model", "R²↑", "RMSE↓", "MAE↓", "CV R² (mean ± std)"].map(h => (
-                  <th
-                    key={h}
-                    className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider"
-                    style={{ color: "var(--text-muted)" }}
-                  >
-                    {h}
-                  </th>
-                ))}
+              <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                {regressionColKeys.map((col, idx) => {
+                  const tipK = regressionTipKeys[idx];
+                  return (
+                    <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                      style={{ color: "var(--text-muted)" }}>
+                      <span className="flex items-center gap-1">
+                        {tCols(col)}
+                        {tipK && <Tip content={tt(tipK)} />}
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {models.map((m, i) => (
-                <tr
-                  key={m.name}
-                  style={{
-                    backgroundColor: i % 2 === 0 ? "var(--bg-card)" : `var(--bg-input)`,
-                    borderColor: "var(--border)",
-                  }}
-                  className="border-b transition-colors hover:opacity-80"
-                >
-                  <td className="px-6 py-3 font-medium flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-                    <span
-                      className="w-2.5 h-2.5 rounded-full inline-block"
-                      style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}
-                    />
-                    {MODEL_LABELS[m.name] ?? m.label}
-                    {m.name === best.name && (
-                      <span
-                        className="ml-2 text-xs px-2 py-0.5 rounded-full flex items-center gap-1"
-                        style={{
-                          backgroundColor: `var(--green)20`,
-                          color: "var(--green)",
-                        }}
-                      >
-                        <CheckCircle2 className="w-3 h-3" />
-                        Best
+              {models.map((m, i) => {
+                const isBest = m.name === best.name;
+                return (
+                  <motion.tr key={m.name}
+                    custom={i} initial="hidden" animate="visible" variants={cardVariants}
+                    className="border-b transition-colors"
+                    style={{
+                      borderColor: "var(--border)",
+                      background: i % 2 === 0 ? "var(--bg-card)" : "var(--bg-input)",
+                    }}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: MODEL_COLORS[i] }} />
+                        <span className="font-medium" style={{ color: "var(--text-primary)" }}>
+                          {modelLabel(tm as (key: string) => string, m.name)}
+                        </span>
+                        {isBest && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                            style={{ background: "var(--green-dim)", color: "var(--green)" }}>
+                            <CheckCircle2 className="w-2.5 h-2.5" />{tc("best")}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs">
+                      <span className={isBest ? "font-bold" : ""}
+                        style={{ color: isBest ? "var(--green)" : "var(--text-primary)" }}>
+                        {fmt(m.r2, 4)}
                       </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-3">
-                    <MetricBadge value={m.r2} best={bestR2} />
-                  </td>
-                  <td className="px-6 py-3">
-                    <MetricBadge value={m.rmse} best={Math.min(...models.map(x => x.rmse))} low />
-                  </td>
-                  <td className="px-6 py-3">
-                    <MetricBadge value={m.mae} best={Math.min(...models.map(x => x.mae))} low />
-                  </td>
-                  <td className="px-6 py-3 font-mono text-xs" style={{ color: "var(--text-primary)" }}>
-                    {fmt(m.cv_r2_mean, 4)} ± {fmt(m.cv_r2_std, 4)}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-primary)" }}>
+                      {fmt(m.rmse, 4)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-primary)" }}>
+                      {fmt(m.mae, 4)}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-muted)" }}>
+                      {fmt(m.cv_r2_mean, 4)} ± {fmt(m.cv_r2_std, 4)}
+                    </td>
+                  </motion.tr>
+                );
+              })}
             </tbody>
           </table>
-        </div>
-      </div>
+        </motion.div>
 
-      {/* Chart row */}
-      <div className="grid grid-cols-2 gap-6">
-        {/* R² bar chart */}
-        <div className="rounded-xl p-6 border" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
-          <h2>R² Score (higher = better)</h2>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={chartData} layout="vertical" barSize={18} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
+        <motion.div
+          className="col-span-2 rounded-card p-5 border"
+          style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}
+          initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <h2 className="mb-4" style={{ color: "var(--text-primary)" }}>{t("r2Chart")}</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart data={chartData} layout="vertical" barSize={16}
+              margin={{ left: 4, right: 16, top: 4, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis
-                type="number"
-                domain={[0.99, 1]}
-                tick={{ fontSize: 10 }}
-                tickFormatter={v => v.toFixed(3)}
-              />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="R2" name="R²" radius={[0, 4, 4, 0]} fill="#4a9eff">
-                {chartData.map((d, i) => <Cell key={d.name} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+              <XAxis type="number" domain={[0.98, 1]} tick={{ fontSize: 9 }}
+                tickFormatter={v => v.toFixed(3)} />
+              <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={100} />
+              <Tooltip content={<ChartTip />} />
+              <Bar dataKey="R2" name={r2Legend} radius={[0, 5, 5, 0]}>
+                {chartData.map((d, i) => <Cell key={d.name} fill={MODEL_COLORS[i]} />)}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-
-        {/* RMSE + MAE */}
-        <div className="rounded-xl p-6 border" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
-          <h2>RMSE & MAE (lower = better)</h2>
-          <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={chartData} layout="vertical" barSize={10} barGap={4} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 10 }} />
-              <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={100} />
-              <Tooltip content={<CustomTooltip />} />
-              <Bar dataKey="RMSE" fill="#4a9eff" radius={[0, 3, 3, 0]} />
-              <Bar dataKey="MAE" fill="#f59e0b" radius={[0, 3, 3, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </motion.div>
       </div>
 
-      {/* Classification Metrics */}
       {clfModels.length > 0 && (
-        <div className="space-y-4">
+        <motion.div
+          className="space-y-5"
+          initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
           <div>
-            <h2>Classification Metrics</h2>
+            <h2 style={{ color: "var(--text-primary)" }}>{t("classificationTitle")}</h2>
             <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-              Campaign performance class prediction (High / Medium / Low) — evaluated on the same test split
+              {t("classificationSub")}
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-6">
-            {/* Table */}
-            <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr style={{ borderColor: "var(--border)" }} className="border-b">
-                      {["Model", "Accuracy↑", "F1-macro↑", "ROC-AUC↑"].map(h => (
-                        <th key={h} className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider" style={{ color: "var(--text-muted)" }}>
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clfModels.map((m, i) => {
-                      const bestF1 = Math.max(...clfModels.map(x => x["F1-macro"]));
-                      const isBest = Math.abs(m["F1-macro"] - bestF1) < 1e-6;
+          <div className="grid grid-cols-2 gap-5">
+            <div className="rounded-card border overflow-hidden"
+              style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b" style={{ borderColor: "var(--border)" }}>
+                    {clfHeaders.map((col, idx) => {
+                      if (col === "model") {
+                        return (
+                          <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                            style={{ color: "var(--text-muted)" }}>
+                            <span className="flex items-center gap-1">{tCols(col)}</span>
+                          </th>
+                        );
+                      }
+                      const tipK = clfTipKeys[idx - 1];
                       return (
-                        <tr key={m.Model} style={{ backgroundColor: i % 2 === 0 ? "var(--bg-card)" : "var(--bg-input)", borderColor: "var(--border)" }} className="border-b">
-                          <td className="px-4 py-3 font-medium flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-                            <span className="w-2 h-2 rounded-full inline-block" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                            {MODEL_LABELS[m.Model] ?? m.Model.replace(/_/g, " ")}
-                            {isBest && <span className="ml-1 text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "var(--green)20", color: "var(--green)" }}>Best</span>}
-                          </td>
-                          <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-primary)" }}>{fmt(m.Accuracy, 4)}</td>
-                          <td className="px-4 py-3 font-mono text-xs" style={{ color: isBest ? "var(--accent)" : "var(--text-primary)", fontWeight: isBest ? 700 : 400 }}>{fmt(m["F1-macro"], 4)}</td>
-                          <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-primary)" }}>{fmt(m["ROC-AUC"], 4)}</td>
-                        </tr>
+                        <th key={col} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider"
+                          style={{ color: "var(--text-muted)" }}>
+                          <span className="flex items-center gap-1">
+                            {tCols(col)}
+                            <Tip content={tt(tipK)} />
+                          </span>
+                        </th>
                       );
                     })}
-                  </tbody>
-                </table>
-              </div>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clfModels.map((m, i) => {
+                    const bestF1 = Math.max(...clfModels.map(x => x["F1-macro"]));
+                    const isBest = Math.abs(m["F1-macro"] - bestF1) < 1e-6;
+                    return (
+                      <tr key={m.Model} className="border-b"
+                        style={{ borderColor: "var(--border)", background: i % 2 === 0 ? "var(--bg-card)" : "var(--bg-input)" }}>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full" style={{ background: MODEL_COLORS[i] }} />
+                            <span className="font-medium text-xs" style={{ color: "var(--text-primary)" }}>
+                              {modelLabel(tm as (key: string) => string, m.Model)}
+                            </span>
+                            {isBest && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full"
+                                style={{ background: "var(--green-dim)", color: "var(--green)" }}>{tc("best")}</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-primary)" }}>
+                          {fmt(m.Accuracy, 4)}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs"
+                          style={{ color: isBest ? "var(--accent)" : "var(--text-primary)", fontWeight: isBest ? 700 : 400 }}>
+                          {fmt(m["F1-macro"], 4)}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs" style={{ color: "var(--text-primary)" }}>
+                          {fmt(m["ROC-AUC"], 4)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-            {/* F1 bar chart */}
-            <div className="rounded-xl p-6 border" style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
-              <h2>F1-macro Score</h2>
-              <ResponsiveContainer width="100%" height={200}>
+
+            <div className="rounded-card p-5 border"
+              style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+              <h2 className="mb-4" style={{ color: "var(--text-primary)" }}>{t("f1Chart")}</h2>
+              <ResponsiveContainer width="100%" height={180}>
                 <BarChart
-                  data={clfModels.map((m, i) => ({ name: MODEL_LABELS[m.Model] ?? m.Model, f1: m["F1-macro"], fill: CHART_COLORS[i % CHART_COLORS.length] }))}
-                  layout="vertical" barSize={18} margin={{ left: 0, right: 20, top: 10, bottom: 0 }}
+                  data={clfModels.map((m, i) => ({
+                    name: modelLabel(tm as (key: string) => string, m.Model),
+                    f1: m["F1-macro"],
+                    fill: MODEL_COLORS[i],
+                  }))}
+                  layout="vertical" barSize={14}
+                  margin={{ left: 4, right: 20, top: 4, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" domain={[0.95, 1]} tick={{ fontSize: 10 }} tickFormatter={v => v.toFixed(3)} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 11 }} width={110} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="f1" name="F1-macro" radius={[0, 4, 4, 0]}>
-                    {clfModels.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  <XAxis type="number" domain={[0.95, 1]} tick={{ fontSize: 9 }} tickFormatter={v => v.toFixed(3)} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={110} />
+                  <Tooltip content={<ChartTip />} />
+                  <Bar dataKey="f1" name={f1Legend} radius={[0, 5, 5, 0]}>
+                    {clfModels.map((_, j) => <Cell key={j} fill={MODEL_COLORS[j]} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
           </div>
-        </div>
+        </motion.div>
       )}
 
-      {/* Insight callouts */}
-      <div className="grid grid-cols-3 gap-4">
+      <motion.div
+        className="grid grid-cols-3 gap-4"
+        initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      >
         {[
           {
-            title: "Best Performance",
-            desc: `${MODEL_LABELS[best.name] ?? best.label} achieves R²=${best.r2}, the highest on test set.`,
+            label: t("insightBest"),
+            body: t("insightBestBody", {
+              name: bestAccLabel,
+              r2: fmt(best.r2, 4),
+              pct: (best.r2 * 100).toFixed(1),
+            }),
             color: "var(--accent)",
           },
           {
-            title: "Most Stable",
-            desc: `CV std ± ${Math.min(...models.map(m => m.cv_r2_std)).toFixed(4)} — all models generalise well on this clean synthetic dataset.`,
+            label: t("insightGen"),
+            body: t("insightGenBody", {
+              std: fmt(minCvStd, 4),
+            }),
             color: "var(--green)",
           },
           {
-            title: "DL vs ML",
-            desc: `MLP (R²=${models.find(m => m.name === "mlp")?.r2}) underperforms tree models here — a key pedagogical finding.`,
-            color: "#4a9eff",
+            label: t("insightDl"),
+            body: t("insightDlBody", { r2: mlpr2Str }),
+            color: "var(--purple)",
           },
-        ].map(({ title, desc, color }) => (
-          <div
-            key={title}
-            className="rounded-xl p-4 border"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: color,
-            }}
-          >
-            <p
-              className="text-xs font-semibold uppercase tracking-wider mb-1"
-              style={{ color }}
-            >
-              {title}
-            </p>
-            <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              {desc}
-            </p>
+        ].map(({ label, body, color }, idx) => (
+          <div key={`insight-${idx}`} className="rounded-card p-4 border"
+            style={{ backgroundColor: "var(--bg-card)", borderColor: `${color}33`, borderLeftWidth: 3, borderLeftColor: color }}>
+            <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color }}>{label}</p>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--text-secondary)" }}>{body}</p>
           </div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }

@@ -1,478 +1,431 @@
 "use client";
-import { useState, useCallback } from "react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from "recharts";
-import { TrendingUp, TrendingDown, Zap, RefreshCw, ChevronUp, ChevronDown } from "lucide-react";
-import { api, PredictResponse, AllPredictions, TvSweepPoint } from "@/lib/api";
-import { fmt, CHART_COLORS } from "@/lib/utils";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslations } from "next-intl";
+import { motion, AnimatePresence } from "framer-motion";
+import { channelLabel } from "@/lib/i18n-helpers";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer, ReferenceLine,
+} from "recharts";
+import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Tip } from "@/components/Tooltip";
+import { api, PredictResponse, TvSweepPoint } from "@/lib/api";
+import { fmt } from "@/lib/utils";
 
-const INFLUENCER_OPTIONS = ["Mega", "Macro", "Micro", "Nano"];
-const PRESETS = [
-  { label: "Balanced", TV: 50, Radio: 18, Social_Media: 3, Influencer: "Macro" },
-  { label: "TV Heavy", TV: 90, Radio: 10, Social_Media: 2, Influencer: "Mega" },
-  { label: "Digital", TV: 20, Radio: 5, Social_Media: 12, Influencer: "Micro" },
-  { label: "Low Budget", TV: 15, Radio: 5, Social_Media: 1, Influencer: "Nano" },
-];
+const CH_COLOR = { TV: "#3b82f6", Radio: "#8b5cf6", "Social Media": "#06b6d4" } as const;
+const INFLUENCER_OPTIONS = ["Mega", "Macro", "Micro", "Nano"] as const;
+const INFLUENCER_COLOR: Record<string, string> = {
+  Mega: "#6366f1", Macro: "#8b5cf6", Micro: "#06b6d4", Nano: "#f59e0b",
+};
 
+const PRESET_KEYS = ["presetBalanced", "presetTvHeavy", "presetDigital", "presetLean"] as const;
+const PRESET_SUB_KEYS = ["presetBalancedSub", "presetTvHeavySub", "presetDigitalSub", "presetLeanSub"] as const;
+const PRESET_VALUES = [
+  { TV: 50, Radio: 18, Social: 3,  Influencer: "Macro" },
+  { TV: 90, Radio: 10, Social: 2,  Influencer: "Mega" },
+  { TV: 20, Radio: 5,  Social: 12, Influencer: "Micro" },
+  { TV: 15, Radio: 5,  Social: 1,  Influencer: "Nano" },
+] as const;
+
+/* ─ Slider ─ */
 function SliderField({
-  label,
-  value,
-  min,
-  max,
-  step = 1,
-  unit = "M",
-  onChange,
-  color,
+  label, value, min, max, step = 1, onChange, color,
 }: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  unit?: string;
-  onChange: (v: number) => void;
-  color: string;
+  label: string; value: number; min: number; max: number;
+  step?: number; onChange: (v: number) => void; color: string;
 }) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const isDragging = useRef(false);
+
   const pct = ((value - min) / (max - min)) * 100;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    isDragging.current = true;
+    const el = trackRef.current!;
+    el.setPointerCapture(e.pointerId);
+
+    const calc = (clientX: number) => {
+      const rect = el.getBoundingClientRect();
+      const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      const raw = min + frac * (max - min);
+      return Math.min(max, Math.max(min, Math.round(raw / step) * step));
+    };
+
+    onChangeRef.current(calc(e.clientX));
+
+    const onMove = (ev: PointerEvent) => onChangeRef.current(calc(ev.clientX));
+    const onUp = () => {
+      isDragging.current = false;
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerup", onUp);
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerup", onUp);
+  };
+
+  const dragT = { duration: 0 } as const;
+  const idleT = { type: "spring", stiffness: 120, damping: 22 } as const;
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-          {label}
-        </label>
-        <span className="text-sm font-mono font-bold" style={{ color }}>
-          {fmt(value, 1)}
-          {unit}
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+          <label className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{label}</label>
+        </div>
+        <span className="text-sm font-mono font-bold tabular-nums" style={{ color }}>
+          {fmt(value, 1)}M
         </span>
       </div>
-      <div className="relative h-2 rounded-full" style={{ backgroundColor: "var(--border)" }}>
-        <div
-          className="absolute h-2 rounded-full transition-all"
-          style={{ width: `${pct}%`, background: value > 0 ? color : "var(--text-muted)" }}
+      <div
+        ref={trackRef}
+        className="relative h-8 flex items-center cursor-pointer select-none touch-none"
+        onPointerDown={handlePointerDown}
+      >
+        {/* Track */}
+        <div className="absolute inset-x-0 h-1.5 rounded-full pointer-events-none"
+          style={{ background: "var(--track-bg)" }}>
+          <motion.div
+            className="absolute inset-y-0 left-0 rounded-full"
+            animate={{ width: `${pct}%` }}
+            transition={isDragging.current ? dragT : idleT}
+            style={{ background: color }}
+          />
+        </div>
+        {/* Thumb */}
+        <motion.div
+          className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 bg-white shadow-md pointer-events-none"
+          animate={{ left: `${pct}%` }}
+          transition={isDragging.current ? dragT : idleT}
+          style={{ marginLeft: "-8px", borderColor: color }}
         />
-        <input
-          type="range"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
-          className="absolute inset-0 w-full opacity-0 cursor-pointer h-2"
-        />
-      </div>
-      <div className="flex justify-between text-xs" style={{ color: "var(--text-muted)" }}>
-        <span>
-          {min}
-          {unit}
-        </span>
-        <span>
-          {max}
-          {unit}
-        </span>
       </div>
     </div>
   );
 }
 
+/* ═══════════════════════════════════════════════════════════
+   MAIN
+═══════════════════════════════════════════════════════════ */
 export default function SimulatorPage() {
-  const [TV, setTV] = useState(50);
-  const [Radio, setRadio] = useState(18);
+  const t = useTranslations("simulator");
+  const tc = useTranslations("common");
+  const tCh = useTranslations("channels");
+  const [TV, setTV]         = useState(50);
+  const [Radio, setRadio]   = useState(18);
   const [Social, setSocial] = useState(3);
   const [influencer, setInfluencer] = useState("Macro");
-  const [result, setResult] = useState<PredictResponse | null>(null);
-  const [allPreds, setAllPreds] = useState<AllPredictions | null>(null);
-  const [sweepData, setSweepData] = useState<TvSweepPoint[]>([]);
-  const [sweepMax, setSweepMax] = useState(297);
-  const [loading, setLoading] = useState(false);
 
-  const runPrediction = useCallback(async () => {
+  const [result, setResult]       = useState<PredictResponse | null>(null);
+  const [sweepData, setSweepData] = useState<TvSweepPoint[]>([]);
+  const [sweepMax, setSweepMax]   = useState(297);
+  const [loading, setLoading]     = useState(false);
+  const [hasResult, setHasResult] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const run = useCallback(async () => {
     setLoading(true);
     try {
       const body = { TV, Radio, Social_Media: Social, Influencer: influencer };
-      const [r, all, sweep] = await Promise.all([
+      const [r, sweep] = await Promise.all([
         api.predict(body),
-        api.predictAll(body),
         api.tvSweep(Radio, Social, influencer),
       ]);
       setResult(r);
-      setAllPreds(all);
       setSweepData(sweep.data);
       setSweepMax(sweep.training_max_tv);
-    } catch {
-      alert("API error — make sure the FastAPI server is running.");
-    } finally {
-      setLoading(false);
-    }
+      setHasResult(true);
+    } catch { /* retry on next change */ }
+    finally { setLoading(false); }
   }, [TV, Radio, Social, influencer]);
 
-  const applyPreset = (p: typeof PRESETS[0]) => {
-    setTV(p.TV);
-    setRadio(p.Radio);
-    setSocial(p.Social_Media);
-    setInfluencer(p.Influencer);
-    setResult(null);
-    setAllPreds(null);
-    setSweepData([]);
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(run, 700);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [run]);
+
+  const applyPreset = (i: number) => {
+    const p = PRESET_VALUES[i];
+    setTV(p.TV); setRadio(p.Radio); setSocial(p.Social); setInfluencer(p.Influencer);
   };
 
   const totalBudget = TV + Radio + Social;
-
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div
-        className="border rounded-lg px-3 py-2 shadow-xl"
-        style={{
-          backgroundColor: "var(--bg-card)",
-          borderColor: "var(--border)",
-        }}
-      >
-        <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>
-          {payload[0]?.payload?.TV ? `TV: ${fmt(payload[0].payload.TV)}M` : label}
-        </p>
-        {payload.map((p: any) => (
-          <p key={p.name} className="text-sm font-semibold" style={{ color: p.color }}>
-            {p.name}: {fmt(p.value)}M
-          </p>
-        ))}
-      </div>
-    );
-  };
+  const roiPct = result ? ((result.roi - 1) * 100) : 0;
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1>Budget Simulator</h1>
+
+      {/* ── Header ── */}
+      <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}>
+        <p className="text-xs font-semibold uppercase tracking-widest mb-1"
+          style={{ color: "var(--accent)" }}>{t("eyebrow")}</p>
+        <h1 style={{ color: "var(--text-primary)" }}>{t("title")}</h1>
         <p className="text-sm mt-1" style={{ color: "var(--text-muted)" }}>
-          Adjust marketing budgets and get real-time Sales & ROI predictions
+          {t("subtitle")}
         </p>
-      </div>
+        <div className="mt-3 inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-lg"
+          style={{ background: "var(--bg-card)", border: "1px solid var(--border)", color: "var(--text-secondary)" }}>
+          <span style={{ color: "var(--accent)" }}>→</span>
+          {t("purpose")}
+        </div>
+      </motion.div>
 
       <div className="grid grid-cols-5 gap-6">
-        {/* Controls Panel */}
-        <div className="col-span-2 space-y-6">
+
+        {/* ── Controls ── */}
+        <motion.div
+          className="col-span-2 space-y-5"
+          initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+        >
           {/* Presets */}
-          <div
-            className="rounded-xl p-5 border"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border)",
-            }}
-          >
-            <p className="text-label mb-3">Quick Presets</p>
+          <div className="rounded-card p-5 border"
+            style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+            <p className="text-label mb-3">{t("presets")}</p>
             <div className="grid grid-cols-2 gap-2">
-              {PRESETS.map((p) => (
-                <button
-                  key={p.label}
-                  onClick={() => applyPreset(p)}
-                  className="px-3 py-2 text-xs font-medium rounded-lg border transition-all text-left"
-                  style={{
-                    backgroundColor: "var(--bg-input)",
-                    borderColor: "var(--border)",
-                    color: "var(--text-muted)",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = "var(--border)";
-                    e.currentTarget.style.color = "var(--text-primary)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = "var(--bg-input)";
-                    e.currentTarget.style.color = "var(--text-muted)";
-                  }}
+              {PRESET_VALUES.map((p, i) => (
+                <motion.button key={PRESET_KEYS[i]}
+                  whileTap={{ scale: 0.96 }}
+                  onClick={() => applyPreset(i)}
+                  className="px-3 py-2.5 text-left rounded-xl border text-xs transition-all"
+                  style={{ background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-muted)" }}
+                  whileHover={{ borderColor: "var(--accent)", color: "var(--text-primary)" }}
                 >
-                  {p.label}
-                  <span style={{ color: "var(--text-muted)" }} className="block mt-0.5 text-xs font-normal">
-                    TV={p.TV}M
+                  <span className="block font-semibold text-[11px]" style={{ color: "var(--text-primary)" }}>
+                    {t(PRESET_KEYS[i])}
                   </span>
-                </button>
+                  <span className="text-[10px]">{t(PRESET_SUB_KEYS[i])} · TV={p.TV}M</span>
+                </motion.button>
               ))}
             </div>
           </div>
 
           {/* Sliders */}
-          <div
-            className="rounded-xl p-6 border space-y-6"
-            style={{
-              backgroundColor: "var(--bg-card)",
-              borderColor: "var(--border)",
-            }}
-          >
-            <p className="text-label">Budget Allocation</p>
-            <SliderField
-              label="TV Budget"
-              value={TV}
-              min={10}
-              max={100}
-              onChange={setTV}
-              color="#4a9eff"
-            />
-            <SliderField
-              label="Radio Budget"
-              value={Radio}
-              min={0}
-              max={50}
-              onChange={setRadio}
-              color="#8b5cf6"
-            />
-            <SliderField
-              label="Social Media"
-              value={Social}
-              min={0}
-              max={14}
-              step={0.5}
-              onChange={setSocial}
-              color="#06b6d4"
-            />
+          <div className="rounded-card p-6 border space-y-6"
+            style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+            <p className="text-label">{t("channelBudget")}</p>
+            <SliderField label={tCh("TV")} value={TV} min={0} max={300} onChange={setTV} color={CH_COLOR.TV} />
+            <SliderField label={tCh("Radio")} value={Radio} min={0} max={100} onChange={setRadio} color={CH_COLOR.Radio} />
+            <SliderField label={tCh("Social Media")} value={Social} min={0} max={50} step={0.5} onChange={setSocial} color={CH_COLOR["Social Media"]} />
 
-            {/* Influencer */}
-            <div>
-              <label className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                Influencer Type
-              </label>
-              <div className="grid grid-cols-4 gap-1.5 mt-2">
+            <div className="space-y-2">
+              <p className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>{tc("influencerTier")}</p>
+              <div className="grid grid-cols-4 gap-1.5">
                 {INFLUENCER_OPTIONS.map((opt) => (
-                  <button
-                    key={opt}
+                  <motion.button key={opt} whileTap={{ scale: 0.94 }}
                     onClick={() => setInfluencer(opt)}
-                    className="py-1.5 text-xs font-medium rounded-lg border transition-all"
+                    className="py-1.5 text-xs font-semibold rounded-lg border transition-colors"
                     style={{
-                      backgroundColor: influencer === opt ? "var(--accent)" : "var(--bg-input)",
-                      borderColor: influencer === opt ? "var(--accent)" : "var(--border)",
-                      color: influencer === opt ? "white" : "var(--text-muted)",
-                    }}
-                  >
+                      background:  influencer === opt ? INFLUENCER_COLOR[opt] : "var(--bg-input)",
+                      borderColor: influencer === opt ? INFLUENCER_COLOR[opt] : "var(--border)",
+                      color:       influencer === opt ? "white" : "var(--text-muted)",
+                    }}>
                     {opt}
-                  </button>
+                  </motion.button>
                 ))}
               </div>
             </div>
 
-            {/* Total Budget */}
-            <div
-              className="pt-2 border-t"
-              style={{ borderColor: "var(--border)" }}
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                  Total Budget
-                </span>
-                <span className="text-sm font-bold font-mono" style={{ color: "var(--text-primary)" }}>
-                  {fmt(totalBudget, 1)}M
+            {/* Budget summary */}
+            <div className="pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+              <div className="flex justify-between items-center">
+                <span className="text-xs" style={{ color: "var(--text-muted)" }}>{tc("totalBudget")}</span>
+                <span className="font-mono font-bold tabular-nums" style={{ color: "var(--text-primary)" }}>
+                  ${fmt(totalBudget, 1)}M
                 </span>
               </div>
             </div>
           </div>
 
-          {/* Predict Button */}
-          <button
-            onClick={runPrediction}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3 px-6 font-semibold rounded-xl transition-all shadow-lg"
-            style={{
-              backgroundColor: loading ? "var(--text-muted)" : "var(--accent)",
-              color: "white",
-              opacity: loading ? 0.6 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                Simulating…
-              </>
-            ) : (
-              <>
-                <Zap className="w-4 h-4" />
-                Run Simulation
-              </>
-            )}
-          </button>
-        </div>
+          {/* Live indicator */}
+          <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
+            {loading
+              ? <><div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--accent)" }} /><span>{tc("updating")}</span></>
+              : <><div className="w-2 h-2 rounded-full" style={{ background: "var(--green)" }} /><span>{tc("liveNoButton")}</span></>}
+          </div>
+        </motion.div>
 
-        {/* Results Panel */}
-        <div className="col-span-3 space-y-4">
-          {!result ? (
-            <div
-              className="h-full flex items-center justify-center rounded-xl border border-dashed py-16"
-              style={{
-                backgroundColor: "var(--bg-card)",
-                borderColor: "var(--border)",
-              }}
-            >
-              <div className="text-center">
-                <Zap className="w-12 h-12 mx-auto mb-3" style={{ color: "var(--text-muted)", opacity: 0.3 }} />
-                <p style={{ color: "var(--text-muted)" }} className="text-sm">
-                  Configure your budget and click Run Simulation
-                </p>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Main Result */}
-              <div className="grid grid-cols-3 gap-4">
-                <div
-                  className="col-span-2 rounded-xl p-6 border"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--accent)",
-                  }}
-                >
-                  <p className="text-label mb-2">Predicted Sales</p>
-                  <p className="text-5xl font-bold text-white">
-                    {fmt(result.predicted_sales)}M
-                  </p>
-                  <div className="mt-3 flex items-center gap-2">
-                    {result.vs_average >= 0 ? (
-                      <TrendingUp className="w-4 h-4" style={{ color: "var(--green)" }} />
-                    ) : (
-                      <TrendingDown className="w-4 h-4" style={{ color: "var(--red)" }} />
-                    )}
-                    <span
-                      className="text-sm font-medium"
-                      style={{
-                        color: result.vs_average >= 0 ? "var(--green)" : "var(--red)",
-                      }}
-                    >
-                      {result.vs_average >= 0 ? "+" : ""}
-                      {fmt(result.vs_average)}M vs dataset avg
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div
-                    className="rounded-xl p-4 border"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border)",
-                    }}
-                  >
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      ROI
-                    </p>
-                    <p className="text-2xl font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>
-                      {fmt(result.roi, 2)}×
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                      Sales / Budget
-                    </p>
-                  </div>
-                  <div
-                    className="rounded-xl p-4 border"
-                    style={{
-                      backgroundColor: "var(--bg-card)",
-                      borderColor: "var(--border)",
-                    }}
-                  >
-                    <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                      Total Budget
-                    </p>
-                    <p className="text-2xl font-bold mt-0.5" style={{ color: "var(--text-primary)" }}>
-                      {fmt(result.total_budget)}M
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>
-                      TV + Radio + SM
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* All Models Predictions */}
-              {allPreds && (
-                <div
-                  className="rounded-xl p-5 border"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border)",
-                  }}
-                >
-                  <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-                    Prediction Across All Models
-                  </h3>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={allPreds.predictions} barSize={32} margin={{ left: 0, right: 0, top: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="label" tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} domain={["auto", "auto"]} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="predicted_sales" name="Predicted Sales (M)" radius={[4, 4, 0, 0]}>
-                        {allPreds.predictions.map((_, i) => (
-                          <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-
-              {/* Budget Breakdown */}
-              <div
-                className="rounded-xl p-5 border"
-                style={{
-                  backgroundColor: "var(--bg-card)",
-                  borderColor: "var(--border)",
-                }}
+        {/* ── Results ── */}
+        <div className="col-span-3 space-y-5">
+          <AnimatePresence>
+            {hasResult && result && (
+              <motion.div
+                key="results"
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                className="space-y-5"
               >
-                <h3 className="font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
-                  Budget Allocation
-                </h3>
-                <div className="space-y-3">
+                {/* KPI row */}
+                <div className="grid grid-cols-3 gap-4">
                   {[
-                    { label: "TV", value: TV, total: totalBudget, color: "#4a9eff" },
-                    { label: "Radio", value: Radio, total: totalBudget, color: "#8b5cf6" },
-                    { label: "Social Media", value: Social, total: totalBudget, color: "#06b6d4" },
-                  ].map(({ label, value, total, color }) => (
-                    <div key={label} className="space-y-1">
-                      <div className="flex justify-between text-xs" style={{ color: "var(--text-muted)" }}>
-                        <span>{label}</span>
-                        <span className="font-mono">
-                          {fmt(value, 1)}M ({fmt((value / total) * 100, 1)}%)
-                        </span>
+                    {
+                      label: t("revenueForecast"),
+                      tip: t("revenueForecastTip"),
+                      value: `$${fmt(result.predicted_sales)}M`,
+                      sub: t("vsAvg", { delta: `${result.vs_average >= 0 ? "+" : ""}${fmt(result.vs_average, 2)}` }),
+                      positive: result.vs_average >= 0,
+                      accent: "var(--accent)",
+                      big: true,
+                    },
+                    {
+                      label: t("roi"),
+                      tip: t("roiTip"),
+                      value: `${roiPct >= 0 ? "+" : ""}${fmt(roiPct, 1)}%`,
+                      sub: t("roiSub"),
+                      positive: roiPct >= 0,
+                      accent: roiPct >= 0 ? "var(--green)" : "var(--red)",
+                      big: false,
+                    },
+                    {
+                      label: t("efficiency"),
+                      tip: t("efficiencyTip"),
+                      value: `${fmt(totalBudget > 0 ? result.predicted_sales / totalBudget : 0, 2)}×`,
+                      sub: t("efficiencySub"),
+                      positive: true,
+                      accent: "var(--purple)",
+                      big: false,
+                    },
+                  ].map(({ label, tip, value, sub, positive, accent, big }) => (
+                    <div key={label} className="rounded-card p-5 border"
+                      style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+                      <div className="flex items-center gap-1 mb-2">
+                        <p className="text-label">{label}</p>
+                        <Tip content={tip} />
                       </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "var(--border)" }}>
-                        <div
-                          className="h-full rounded-full transition-all"
-                          style={{ width: `${(value / total) * 100}%`, background: color }}
-                        />
+                      <p className={`font-bold tabular-nums ${big ? "text-3xl" : "text-2xl"}`}
+                        style={{ color: accent }}>
+                        {value}
+                      </p>
+                      <div className="flex items-center gap-1 mt-1.5">
+                        {positive
+                          ? <ArrowUpRight className="w-3 h-3" style={{ color: "var(--green)" }} />
+                          : <ArrowDownRight className="w-3 h-3" style={{ color: "var(--red)" }} />}
+                        <p className="text-xs" style={{ color: "var(--text-muted)" }}>{sub}</p>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* Sales Sensitivity Chart */}
-              {sweepData.length > 0 && (
-                <div
-                  className="rounded-xl p-5 border"
-                  style={{
-                    backgroundColor: "var(--bg-card)",
-                    borderColor: "var(--border)",
-                  }}
-                >
-                  <h3 className="font-semibold mb-1" style={{ color: "var(--text-primary)" }}>
-                    Sales Sensitivity: TV Budget Sweep
-                  </h3>
-                  <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
-                    Predicted sales as TV spend increases 0 → 300 M (Radio={Radio}M, SM={Social}M fixed)
-                  </p>
-                  <ResponsiveContainer width="100%" height={200}>
-                    <LineChart data={sweepData} margin={{ left: 0, right: 10, top: 10, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="tv" tick={{ fontSize: 10 }} label={{ value: "TV (M)", position: "insideBottomRight", offset: -5, fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 10 }} />
-                      <Tooltip formatter={(v: number) => [`${v.toFixed(2)}M`, "Sales"]} labelFormatter={(v) => `TV: ${v}M`} contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                      {/* Current TV marker */}
-                      <Line type="monotone" dataKey="sales" stroke="#4a9eff" strokeWidth={2} dot={false} />
-                      {/* Training max reference */}
-                    </LineChart>
-                  </ResponsiveContainer>
-                  <div className="flex items-center gap-4 mt-2 text-xs" style={{ color: "var(--text-muted)" }}>
-                    <span className="flex items-center gap-1"><span className="inline-block w-6 h-0.5 bg-[#4a9eff]" /> Predicted Sales</span>
-                    <span>Training max TV: {sweepMax}M</span>
+                {/* Model attribution */}
+                <div className="flex items-center justify-between px-1">
+                  <span className="text-xs" style={{ color: "var(--text-muted)" }}>
+                    {t("poweredBy")}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
+                      style={{ background: "var(--accent-dim)", color: "var(--accent)" }}>
+                      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-80" />
+                      Random Forest
+                    </span>
+                    <span className="text-xs tabular-nums" style={{ color: "var(--text-muted)" }}>R² = 0.9965</span>
                   </div>
                 </div>
-              )}
-            </>
+
+                {/* Budget breakdown */}
+                <div className="rounded-card p-5 border"
+                  style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+                  <p className="text-label mb-4">{t("channelAllocation")}</p>
+                  <div className="space-y-3">
+                    {[
+                      { name: "TV" as const,           value: TV,    color: CH_COLOR.TV },
+                      { name: "Radio" as const,        value: Radio, color: CH_COLOR.Radio },
+                      { name: "Social Media" as const, value: Social,color: CH_COLOR["Social Media"] },
+                    ].map(({ name, value, color }) => (
+                      <div key={name} className="space-y-1">
+                        <div className="flex justify-between text-xs">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+                            <span style={{ color: "var(--text-secondary)" }}>{channelLabel(tCh, name)}</span>
+                          </span>
+                          <span className="font-mono tabular-nums" style={{ color: "var(--text-muted)" }}>
+                            {fmt(value, 1)}M · {totalBudget > 0 ? fmt((value / totalBudget) * 100, 0) : 0}%
+                          </span>
+                        </div>
+                        <div className="h-1.5 rounded-full" style={{ background: "var(--track-bg)" }}>
+                          <motion.div className="h-full rounded-full"
+                            animate={{ width: `${totalBudget > 0 ? (value / totalBudget) * 100 : 0}%` }}
+                            transition={{ type: "spring", stiffness: 80, damping: 18 }}
+                            style={{ background: color }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* TV Sensitivity sweep */}
+                {sweepData.length > 0 && (
+                  <div className="rounded-card p-5 border"
+                    style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+                    <div className="flex items-center gap-1 mb-1">
+                      <p className="text-label">{t("tvSensitivity")}</p>
+                      <Tip content={t("tvSensitivityTip")} />
+                    </div>
+                    <p className="text-xs mb-4" style={{ color: "var(--text-muted)" }}>
+                      {t("tvSensitivitySub", {
+                        max: fmt(sweepData[sweepData.length - 1]?.tv ?? 0, 0),
+                        radio: fmt(Radio, 0),
+                        sm: fmt(Social, 1),
+                      })}
+                    </p>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <LineChart data={sweepData} margin={{ left: 0, right: 10, top: 8, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="sweepGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor="#3b82f6" stopOpacity={0.2} />
+                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="tv" tick={{ fontSize: 9 }}
+                          label={{ value: "TV ($M)", position: "insideBottomRight", offset: -5, fontSize: 9, fill: "var(--text-muted)" }} />
+                        <YAxis tick={{ fontSize: 9 }} />
+                        <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}M`, tc("revenue")]}
+                          labelFormatter={(v) => `${tCh("TV")}: $${v}M`}
+                          contentStyle={{ background: "var(--bg-card)", border: "1px solid var(--border-strong)", borderRadius: 8, fontSize: 11 }} />
+                        {/* Training range boundary */}
+                        <ReferenceLine x={sweepMax} stroke="rgba(255,255,255,0.25)" strokeDasharray="4 3"
+                          label={{ value: t("trainingCap"), position: "top", fontSize: 9, fill: "var(--text-muted)" }} />
+                        <ReferenceLine x={TV} stroke="var(--accent)" strokeWidth={1.5}
+                          label={{ value: t("currentTvLabel", { tv: TV }), position: "top", fontSize: 9, fill: "var(--accent)" }} />
+                        <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2.5}
+                          dot={false} activeDot={{ r: 4, fill: "#3b82f6" }} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div className="flex items-center gap-6 mt-3 text-xs" style={{ color: "var(--text-muted)" }}>
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-5 h-0.5 rounded bg-blue-500" />
+                        {t("revenueForecastLegend")}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-5 h-0.5 rounded" style={{ background: "var(--accent)" }} />
+                        {t("currentTv")}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="inline-block w-5 h-px" style={{ borderTop: "2px dashed rgba(255,255,255,0.3)" }} />
+                        {t("trainingBoundary")}
+                        <Tip content={t("trainingBoundaryTip")} side="top" />
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Loading skeleton */}
+          {!hasResult && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+              className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="h-32 rounded-card animate-shimmer" />
+              ))}
+            </motion.div>
           )}
         </div>
       </div>
