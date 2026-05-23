@@ -42,10 +42,10 @@ function AnimatedCounter({
 
 // ── KPI card ──────────────────────────────────────────────────────────────────
 function KpiCard({
-  title, value, sub, icon: Icon, accent, delay = 0,
+  title, value, sub, icon: Icon, accent, delay = 0, decimals = 2,
 }: {
   title: string; value: number; sub: string; accent: string; delay?: number;
-  icon: React.ElementType;
+  icon: React.ElementType; decimals?: number;
 }) {
   return (
     <motion.div
@@ -62,7 +62,7 @@ function KpiCard({
         <div className="space-y-2 flex-1">
           <p className="text-label">{title}</p>
           <p className="text-3xl font-bold tracking-tight" style={{ color: "var(--text-primary)" }}>
-            <AnimatedCounter value={value} decimals={2} />
+            <AnimatedCounter value={value} decimals={decimals} />
           </p>
           <p className="text-xs" style={{ color: "var(--text-muted)" }}>{sub}</p>
         </div>
@@ -352,7 +352,7 @@ export default function OverviewPage() {
 
       {/* ── KPI Grid ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <KpiCard title={t("kpiCampaigns")}  value={stats.total_campaigns}                              sub={t("kpiCampaignsSub")}                                        icon={Target}    accent="#3b82f6" delay={0.05} />
+        <KpiCard title={t("kpiCampaigns")}  value={stats.total_campaigns}                              sub={t("kpiCampaignsSub")}                                        icon={Target}    accent="#3b82f6" delay={0.05} decimals={0} />
         <KpiCard title={t("kpiAvgRevenue")} value={stats.avg_sales}                                    sub={t("kpiAvgRevenueSub", { q66: fmt(stats.sales_q66 ?? 0) })}  icon={TrendingUp} accent="#8b5cf6" delay={0.1}  />
         <KpiCard title={t("kpiRoi")}        value={stats.avg_roi}                                      sub={t("kpiRoiSub")}                                              icon={DollarSign} accent="#10b981" delay={0.15} />
         <KpiCard title={t("kpiBudget")}     value={stats.avg_total_budget ?? totalBudget}              sub={t("kpiBudgetSub")}                                           icon={Users}      accent="#f59e0b" delay={0.2}  />

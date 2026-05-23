@@ -159,10 +159,28 @@ with tab1:
         plt.tight_layout(); st.pyplot(fig); plt.close()
 
     with row1_r:
-        st.subheader("Correlation Heatmap")
-        fig2, ax2 = plt.subplots(figsize=(6, 4))
-        sns.heatmap(df[num_cols].corr(), annot=True, fmt=".2f",
-                    cmap="coolwarm", ax=ax2, vmin=-1, vmax=1)
+        st.subheader("Correlation Matrix")
+        _CH = {"TV": "#3b82f6", "Radio": "#8b5cf6", "Social Media": "#06b6d4", "Sales": "#10b981"}
+        corr_m = df[num_cols].corr()
+        fig2, axes2 = plt.subplots(1, 2, figsize=(10, 3.8))
+        sns.heatmap(corr_m, annot=True, fmt=".2f", cmap="coolwarm",
+                    ax=axes2[0], vmin=-1, vmax=1, square=True,
+                    linewidths=0.6, linecolor="#e2e8f0",
+                    annot_kws={"size": 9, "weight": "bold"})
+        axes2[0].set_title("Full Matrix", fontsize=9, pad=6)
+        axes2[0].tick_params(labelsize=8)
+        sales_corr = corr_m["Sales"].drop("Sales").sort_values(ascending=True)
+        bcols = [_CH.get(c, "#64748b") for c in sales_corr.index]
+        bars2 = axes2[1].barh(sales_corr.index, sales_corr.values,
+                               color=bcols, height=0.45, edgecolor="white")
+        for bar, (col, val) in zip(bars2, sales_corr.items()):
+            axes2[1].text(val + 0.01, bar.get_y() + bar.get_height() / 2,
+                          f"r = {val:.3f}", va="center", fontsize=8, fontweight="bold")
+        axes2[1].set_xlim(0, 1.15)
+        axes2[1].set_xlabel("Pearson r with Sales", fontsize=8)
+        axes2[1].set_title("Channel → Sales", fontsize=9, pad=6)
+        axes2[1].tick_params(labelsize=8)
+        axes2[1].grid(axis="x", alpha=0.3)
         plt.tight_layout(); st.pyplot(fig2); plt.close()
 
     # ── Row 2: Sales by Influencer | Class Distribution ───────────────────────
@@ -183,6 +201,33 @@ with tab1:
             counts.plot(kind="bar", color=["#2ecc71", "#f39c12", "#e74c3c"], ax=ax4, edgecolor="k")
             ax4.set_ylabel("Count"); plt.xticks(rotation=0)
             plt.tight_layout(); st.pyplot(fig4); plt.close()
+
+    # ── Row 3: Channel vs Sales scatter plots ─────────────────────────────────
+    st.subheader("Channel Budget vs Sales — scatter plots")
+    _CH_SC = {"TV": "#3b82f6", "Radio": "#8b5cf6", "Social Media": "#06b6d4"}
+    _INF_SC = {"Mega": "#6366f1", "Macro": "#8b5cf6", "Micro": "#06b6d4", "Nano": "#f59e0b"}
+    _INF_ORDER = [o for o in ["Mega", "Macro", "Micro", "Nano"] if o in df["Influencer"].unique()]
+    samp_sc = df.sample(min(500, len(df)), random_state=42)
+    corr_sc = df[["TV", "Radio", "Social Media", "Sales"]].corr()
+    fig_sc, axes_sc = plt.subplots(1, 3, figsize=(14, 4))
+    for ax_sc, ch in zip(axes_sc, ["TV", "Radio", "Social Media"]):
+        for inf in _INF_ORDER:
+            sub = samp_sc[samp_sc["Influencer"] == inf]
+            ax_sc.scatter(sub[ch], sub["Sales"],
+                          alpha=0.5, s=10, color=_INF_SC[inf], label=inf)
+        m_sc, b_sc = np.polyfit(samp_sc[ch], samp_sc["Sales"], 1)
+        x_sc = np.linspace(samp_sc[ch].min(), samp_sc[ch].max(), 100)
+        ax_sc.plot(x_sc, m_sc * x_sc + b_sc, color=_CH_SC[ch], linewidth=2, linestyle="--")
+        r_sc = corr_sc.loc[ch, "Sales"]
+        ax_sc.set_xlabel(f"{ch} Budget ($M)", fontsize=9)
+        ax_sc.set_ylabel("Sales ($M)", fontsize=9)
+        ax_sc.set_title(f"{ch} vs Sales  (r = {r_sc:.4f})", fontsize=9)
+        ax_sc.legend(fontsize=7, loc="lower right", markerscale=1.2)
+        ax_sc.tick_params(labelsize=7)
+        ax_sc.grid(alpha=0.2)
+    plt.tight_layout()
+    st.pyplot(fig_sc)
+    plt.close()
 
 # ── TAB 2 — Model Comparison ──────────────────────────────────────────────────
 with tab2:

@@ -14,6 +14,33 @@ import { modelLabel } from "@/lib/i18n-helpers";
 
 const MODEL_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#10b981"];
 
+function LearningCurveCard({ src, label, color }: { src: string; label: string; color: string }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <div className="rounded-card border overflow-hidden"
+      style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
+      <div className="px-4 py-2.5 border-b flex items-center gap-2"
+        style={{ borderColor: "var(--border)" }}>
+        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: color }} />
+        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>{label}</span>
+      </div>
+      {failed ? (
+        <div className="flex items-center justify-center h-48 text-xs"
+          style={{ color: "var(--text-muted)" }}>
+          Run <code className="mx-1 px-1 rounded" style={{ background: "var(--bg-input)" }}>python src/evaluate.py</code> to generate curves
+        </div>
+      ) : (
+        <img
+          src={src}
+          alt={`Learning curve — ${label}`}
+          className="w-full block"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </div>
+  );
+}
+
 function ChartTip({
   active,
   payload,
@@ -78,8 +105,8 @@ export default function ModelsPage() {
     </div>
   );
 
-  const bestR2 = Math.max(...models.map(m => m.r2));
-  const best   = models.find(m => m.r2 === bestR2)!;
+  const PREFERRED_MODEL_ORDER = ["gradient_boosting", "random_forest", "linear_regression", "mlp"];
+  const best = (PREFERRED_MODEL_ORDER.map(n => models.find(m => m.name === n)).find(Boolean) ?? models[0])!;
   const bestAccLabel = modelLabel(tm as (key: string) => string, best.name);
 
   const regressionColKeys = ["model", "r2", "rmse", "mae", "cvR2"] as const;
@@ -506,6 +533,41 @@ export default function ModelsPage() {
           </div>
         </motion.div>
       )}
+
+      <motion.div
+        className="space-y-5"
+        initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div>
+          <h2 style={{ color: "var(--text-primary)" }}>{t("lcTitle")}</h2>
+          <p className="text-xs mt-1" style={{ color: "var(--text-muted)" }}>{t("lcSub")}</p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-5">
+          {models.map((m, i) => (
+            <LearningCurveCard
+              key={m.name}
+              src={`/api/figures/learning_curve_${m.name}.png`}
+              label={modelLabel(tm as (key: string) => string, m.name)}
+              color={MODEL_COLORS[i % MODEL_COLORS.length]}
+            />
+          ))}
+        </div>
+
+        <div className="flex items-center gap-6 text-xs" style={{ color: "var(--text-muted)" }}>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-6 h-0.5 rounded" style={{ background: "#4C8BE2" }} />
+            <span className="inline-block w-2 h-2 rounded-full border-2" style={{ borderColor: "#4C8BE2" }} />
+            {t("lcTraining")}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="inline-block w-6 h-0.5 rounded" style={{ background: "#F28B30" }} />
+            <span className="inline-block w-2 h-2 rounded" style={{ background: "#F28B30" }} />
+            {t("lcValidation")}
+          </span>
+        </div>
+      </motion.div>
 
       <motion.div
         className="grid grid-cols-3 gap-4"
