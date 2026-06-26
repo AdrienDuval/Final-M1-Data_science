@@ -1,24 +1,27 @@
 """
-Model definitions and training entry point for the Streamlit pipeline.
+Classification training entry point.
 
-Models are saved as  models/{name}_{task}.pkl
-Preprocessors as     models/pipeline_{task}.pkl
-Label encoder as     models/label_encoder.pkl  (classification only)
+Regression models for the API are trained by src/train.py (models/{name}.pkl).
+This script trains only the classification stack consumed by the API's /classify
+endpoint and by src/evaluate.py:
+
+    models/{name}_classification.pkl   — fitted estimators (expect preprocessed arrays)
+    models/pipeline_classification.pkl — fitted preprocessor
+    models/label_encoder.pkl           — class label encoder
 
 Usage:
-    python src/models.py          # trains regression + classification
+    python src/models.py          # trains the classification models
 """
 import joblib
 from pathlib import Path
 
-from sklearn.linear_model import LinearRegression, LogisticRegression
-from sklearn.ensemble import (RandomForestRegressor, RandomForestClassifier,
-                               GradientBoostingRegressor, GradientBoostingClassifier)
-from sklearn.neural_network import MLPRegressor, MLPClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.neural_network import MLPClassifier
 from sklearn.model_selection import RandomizedSearchCV
 
 try:
-    from xgboost import XGBRegressor, XGBClassifier
+    from xgboost import XGBClassifier
     XGB_AVAILABLE = True
 except ImportError:
     XGB_AVAILABLE = False
@@ -63,18 +66,6 @@ _GB_KWARGS = dict(n_estimators=300, learning_rate=0.05, max_depth=6, random_stat
 
 
 # ── Model catalogues ──────────────────────────────────────────────────────────
-
-def get_regression_models() -> dict:
-    return {
-        "linear_regression":  LinearRegression(),
-        "random_forest":      RandomForestRegressor(n_estimators=200,
-                                                     random_state=42, n_jobs=-1),
-        "gradient_boosting": (XGBRegressor(**_GB_KWARGS, n_jobs=-1)
-                              if XGB_AVAILABLE else
-                              GradientBoostingRegressor(**_GB_KWARGS)),
-        "mlp":                MLPRegressor(**_MLP_KWARGS),
-    }
-
 
 def get_classification_models() -> dict:
     return {
@@ -124,7 +115,7 @@ def _tune(model, param_grid: dict, X_tr, y_tr, scoring: str) -> object:
 
 # ── Training entry point ──────────────────────────────────────────────────────
 
-def train_all(task: str = "regression"):
+def train_all(task: str = "classification"):
     """
     Train all models for the given task with RandomizedSearchCV for RF & GB.
     Fits and saves the preprocessor, then saves each trained model.
@@ -141,20 +132,14 @@ def train_all(task: str = "regression"):
 
     X_tr = prep.transform(X_train)
 
-    if task == "classification":
-        from sklearn.preprocessing import LabelEncoder
-        le   = LabelEncoder()
-        y_tr = le.fit_transform(y_train)
-        save_model(le, "label_encoder.pkl")
-        scoring_rf = "f1_macro"
-        scoring_gb = "f1_macro"
-    else:
-        y_tr       = y_train.values
-        scoring_rf = "neg_root_mean_squared_error"
-        scoring_gb = "neg_root_mean_squared_error"
+    from sklearn.preprocessing import LabelEncoder
+    le   = LabelEncoder()
+    y_tr = le.fit_transform(y_train)
+    save_model(le, "label_encoder.pkl")
+    scoring_rf = "f1_macro"
+    scoring_gb = "f1_macro"
 
-    models = (get_regression_models() if task == "regression"
-              else get_classification_models())
+    models = get_classification_models()
 
     trained = {}
     for name, m in models.items():
@@ -173,7 +158,5 @@ def train_all(task: str = "regression"):
 
 
 if __name__ == "__main__":
-    print("=== Regression ===")
-    train_all("regression")
-    print("\n=== Classification ===")
+    print("=== Classification ===")
     train_all("classification")

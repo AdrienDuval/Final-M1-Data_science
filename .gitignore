@@ -32,3 +32,12 @@ Thumbs.db
 
 # Cursor IDE (local agent skills — not part of the project deliverable)
 .cursor/skills/
+
+# Claude Code (local agent skills — not part of the project deliverable)
+.claude/skills/
+
+# MS Office temporary / lock files (created while a doc is open)
+~$*
+
+# TypeScript incremental build cache
+*.tsbuildinfo

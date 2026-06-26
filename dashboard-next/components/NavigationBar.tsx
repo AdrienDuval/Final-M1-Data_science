@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useTranslations } from "next-intl";
 import {
   BarChart3, GitCompareArrows, Zap, Lightbulb,
-  TrendingUp, Target, Activity, Sun, Moon,
+  TrendingUp, Target, Activity, Sun, Moon, GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTheme } from "@/components/ThemeProvider";
@@ -26,6 +26,10 @@ export default function NavigationBar() {
     { href: "/dashboard",           label: t("dashboard"), icon: BarChart3 },
     { href: "/models",             label: t("models"),    icon: GitCompareArrows },
     { href: "/feature-importance", label: t("drivers"),   icon: Lightbulb },
+  ];
+
+  const prepTabs = [
+    { href: "/soutenance", label: t("soutenance"), icon: GraduationCap },
   ];
 
   const renderTab = ({ href, label, icon: Icon }: typeof toolsTabs[0]) => {
@@ -127,6 +131,20 @@ export default function NavigationBar() {
                 {t("analyticsLabel")}
               </span>
               {analyticsTabs.map(renderTab)}
+            </div>
+
+            {/* Divider */}
+            <div className="w-px h-5 mx-1 flex-shrink-0" style={{ background: "var(--border)" }} />
+
+            {/* Soutenance prep */}
+            <div className="flex items-center gap-0.5">
+              <span
+                className="text-[9px] font-bold uppercase tracking-widest px-2 py-1 select-none"
+                style={{ color: "var(--orange)" }}
+              >
+                {t("prepLabel")}
+              </span>
+              {prepTabs.map(renderTab)}
             </div>
 
           </div>
