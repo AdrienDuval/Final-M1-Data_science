@@ -131,7 +131,7 @@ def _build_metrics_cache():
 
 
 def _build_feature_importance_cache():
-    preferred = ["gradient_boosting", "random_forest"]
+    preferred = ["random_forest", "gradient_boosting"]
     target    = next((n for n in preferred if n in state["models"]), None)
     if target is None:
         state["feature_importance"] = {}
@@ -168,7 +168,9 @@ if _figures_dir.exists():
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _best_reg_model() -> str:
-    preferred = ["gradient_boosting", "random_forest", "linear_regression", "mlp"]
+    # Random Forest is the selected model (best cross-validation R²); the order
+    # below is the fallback chain if it is unavailable.
+    preferred = ["random_forest", "gradient_boosting", "linear_regression", "mlp"]
     name = next((n for n in preferred if n in state["models"]), None)
     if name is None:
         raise HTTPException(status_code=503, detail="No regression models loaded")
