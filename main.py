@@ -69,7 +69,7 @@ def _run(script_name):
 # ── Steps ─────────────────────────────────────────────────────────────────────
 
 def step_train():
-    _header("STEP 1 — Training")
+    _header("STEP 1: Training")
     models_exist = _all_exist(REG_MODELS + CLF_MODELS, MODELS)
 
     if models_exist:
@@ -88,7 +88,7 @@ def step_train():
 
 
 def step_evaluate():
-    _header("STEP 2 — Evaluation")
+    _header("STEP 2: Evaluation")
     metrics_exist  = _all_exist(METRIC_FILES, MODELS)
     figures_exist  = _all_exist(FIGURE_FILES, FIGURES)
 
@@ -111,7 +111,7 @@ def step_evaluate():
 
 
 def step_dashboard():
-    _header("STEP 3 — Dashboard")
+    _header("STEP 3: Dashboard")
     print("  Launching Streamlit dashboard at http://localhost:8501")
     print("  Press Ctrl+C to stop.\n")
     subprocess.run(
@@ -130,7 +130,7 @@ API_MODELS = [
 ]
 
 def step_nextjs():
-    _header("STEP — Next.js Dashboard + FastAPI")
+    _header("STEP: Next.js Dashboard + FastAPI")
 
     # Auto-train API models if missing
     if not _all_exist(API_MODELS, MODELS):
@@ -144,7 +144,7 @@ def step_nextjs():
             print("\n[ERROR] Training failed. Aborting.")
             sys.exit(result.returncode)
     else:
-        print("  ✓ API models found — skipping training.")
+        print("  ✓ API models found. Skipping training.")
 
     # Launch FastAPI
     print("\n  Starting FastAPI on http://localhost:8000 …")
@@ -185,7 +185,7 @@ def step_nextjs():
 
 def main():
     print("\n╔══════════════════════════════════════════════╗")
-    print("║    Marketing ROI — ML Pipeline               ║")
+    print("║    Marketing ROI: ML Pipeline                ║")
     print("║    EFREI M1 Data Engineering                 ║")
     print("╚══════════════════════════════════════════════╝")
 
@@ -214,7 +214,7 @@ def main():
         choice = input("\n  Enter choice [1-6]: ").strip()[:1]
         if choice in ("1", "2", "3", "4", "5", "6"):
             break
-        print("  ✗ Invalid — please enter a number between 1 and 6.")
+        print("  ✗ Invalid. Please enter a number between 1 and 6.")
 
     if choice == "1":
         step_train()

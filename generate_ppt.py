@@ -123,7 +123,7 @@ def s01_title(prs):
 def s02_problematique(prs):
     s = blank(prs)
     cy = header(s, "Problématique",
-                "Les budgets publicitaires sont encore trop souvent alloués à l'intuition — pas à la donnée.")
+                "Les budgets publicitaires sont encore trop souvent alloués à l'intuition, pas à la donnée.")
     cw, ch = 5.85, SH_ - cy - 0.45
     card(s, 0.45, cy, cw, ch, fill=RGBColor(0x14,0x0d,0x0d), line=RED, lw=0.6)
     card(s, 0.45+cw+0.28, cy, cw, ch, fill=RGBColor(0x0a,0x13,0x25), line=ACCENT, lw=0.6)
@@ -140,7 +140,7 @@ def s02_problematique(prs):
     R = ["Modèles entraînés sur 4 572 campagnes documentées",
          "Prédiction du CA en temps réel selon le budget alloué",
          "4 canaux : TV · Radio · Social Media · Influenceur",
-         "R² > 0.994 — corrélation quasi-parfaite avec les ventes",
+         "R² > 0.994 : corrélation quasi-parfaite avec les ventes",
          "Simulation live : le revenu s'affiche instantanément"]
     for i,(l,r_) in enumerate(zip(L,R)):
         by = cy+0.72+i*0.54
@@ -184,7 +184,7 @@ def s03_objectives(prs):
 def s04_architecture(prs):
     s = blank(prs)
     cy = header(s, "Architecture de la solution",
-                "Cinq couches modulaires — de la donnée brute à la décision business.")
+                "Cinq couches modulaires : de la donnée brute à la décision business.")
     layers = [
         ("DONNÉES",        "data/Dummy Data HSS.csv",
          "4 572 lignes · TV, Radio, Social Media, Influencer, Sales", CYAN),
@@ -192,9 +192,9 @@ def s04_architecture(prs):
          "StandardScaler + OneHotEncoder · Pipeline sklearn · Imputation médiane", PURPLE),
         ("ENTRAÎNEMENT ML","src/train.py",
          "RandomizedSearchCV · 15 iter · 5-fold CV · 4 algorithmes → .pkl (joblib)", ACCENT),
-        ("API REST",       "api/main.py — FastAPI",
+        ("API REST",       "api/main.py : FastAPI",
          "/predict · /predict/all · /metrics · /feature-importance · /stats · /health", GREEN),
-        ("DASHBOARD",      "dashboard-next/ — Next.js 14",
+        ("DASHBOARD",      "dashboard-next/ : Next.js 14",
          "TypeScript · Tailwind CSS · Recharts · Framer Motion · 7 pages · Clair/Sombre", ORANGE),
     ]
     lh, lw, gap = 0.7, 12.0, 0.13
@@ -214,7 +214,7 @@ def s04_architecture(prs):
         if i < len(layers)-1:
             rect(s, 6.28, ly+lh+0.01, 0.07, gap-0.01, fill=ACCENT)
     note_y = cy + len(layers)*(lh+gap) + 0.06
-    txt(s, "⚡  docker-compose up  —  API :8000  ·  Dashboard :3000",
+    txt(s, "⚡  docker-compose up  ·  API :8000  ·  Dashboard :3000",
         0.5, note_y, 12.3, 0.33, sz=10, italic=True, color=MUTED, align=PP_ALIGN.CENTER)
     return s
 
@@ -222,7 +222,7 @@ def s04_architecture(prs):
 def s05_pipeline(prs):
     s = blank(prs)
     cy = header(s, "Pipeline ML : de la donnée brute à la prédiction",
-                "Un pipeline rigoureusement validé — de la saisie brute à l'inférence en moins de 50 ms.")
+                "Un pipeline rigoureusement validé : de la saisie brute à l'inférence en moins de 50 ms.")
     steps = [
         ("①","load_data()","CSV · 4 572 lignes\nValidation schéma",CYAN),
         ("②","build_preprocessor()","StandardScaler\n+ OneHotEncoder",PURPLE),
@@ -253,8 +253,8 @@ def s05_pipeline(prs):
 # ─────────────────────────────────────────────────────────────────────────────
 def s06_models(prs):
     s = blank(prs)
-    cy = header(s, "Les 4 modèles ML — Performances comparées",
-                "Tous les modèles dépassent R² = 0.99 — le Random Forest s'impose comme référence.")
+    cy = header(s, "Les 4 modèles ML : Performances comparées",
+                "Tous les modèles dépassent R² = 0.99 : le Random Forest s'impose comme référence.")
     # Table
     tx, tw = 0.5, 7.1
     cols  = ["Modèle","R² moyen","Écart-type","Statut"]
@@ -309,8 +309,8 @@ def s06_models(prs):
 # ─────────────────────────────────────────────────────────────────────────────
 def s07_dashboard(prs):
     s = blank(prs)
-    cy = header(s, "Dashboard — 7 pages d'intelligence marketing",
-                "De la prédiction brute à l'optimisation stratégique — chaque page répond à une question business précise.")
+    cy = header(s, "Dashboard : 7 pages d'intelligence marketing",
+                "De la prédiction brute à l'optimisation stratégique : chaque page répond à une question business précise.")
     pages = [
         ("📊","Accueil",ACCENT,         "Vue globale · KPIs · corrélation canaux · benchmark revenus"),
         ("🎯","Prévision des revenus",PURPLE,"Sliders · prédiction temps réel · ROI · consensus 4 modèles"),
@@ -335,7 +335,7 @@ def s07_dashboard(prs):
 # ─────────────────────────────────────────────────────────────────────────────
 def s08_demo(prs):
     s = blank(prs)
-    cy = header(s, "Démonstration — du budget au ROI en temps réel",
+    cy = header(s, "Démonstration : du budget au ROI en temps réel",
                 "Cas réel : 90M€ TV · 10M€ Radio · 2M€ Social Media · Influenceur Mega.")
     steps = [
         ("①","Ajuster les sliders",ACCENT,"Interface Framer Motion\naucun bouton requis",
@@ -398,14 +398,14 @@ def s09_bilan(prs):
                 "Un système performant et démontrable aujourd'hui, avec une trajectoire claire d'amélioration.")
     cols_data = [
         ("💪","Forces",GREEN,
-         ["R² > 0.99 sur les 4 modèles — prédictions ultra-précises",
+         ["R² > 0.99 sur les 4 modèles : prédictions ultra-précises",
           "Architecture modulaire et Docker-ready",
           "API REST documentée et scalable (FastAPI)",
           "Dashboard : 7 pages, mode clair/sombre, responsive",
           "Pipeline sklearn reproductible (splits.pkl, joblib)",
           "Déployable : docker-compose up"]),
         ("⚠️","Limites",ORANGE,
-         ["Dataset synthétique — à valider sur données réelles",
+         ["Dataset synthétique : à valider sur données réelles",
           "Pas de feedback ni de ré-entraînement automatique",
           "Saisonnalité et tendances non modélisées",
           "Influencer : variable catégorielle simple",
@@ -436,7 +436,7 @@ def s10_conclusion(prs):
     oval(s, 3.8, 0.4, 5.8, fill=RGBColor(0x0a,0x14,0x2e))
     txt(s, "Conclusion", 0.5, 0.35, 12.3, 0.72, sz=32, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
     rect(s, 5.6, 1.1, 2.1, 0.055, fill=ACCENT)
-    txt(s, "ROI Intelligence démontre qu'il est possible de transformer un budget publicitaire\nen décision data-driven — précise, explicable et actionnable.",
+    txt(s, "ROI Intelligence démontre qu'il est possible de transformer un budget publicitaire\nen décision data-driven : précise, explicable et actionnable.",
         0.8, 1.28, 11.7, 0.78, sz=13, italic=True, color=MUTED, align=PP_ALIGN.CENTER)
     pillars = [
         ("⚡","Performance",ACCENT,
@@ -444,7 +444,7 @@ def s10_conclusion(prs):
         ("🧱","Scalabilité",CYAN,
          "Architecture Docker-ready : API FastAPI indépendante\ndu frontend, extensible à de nouveaux canaux."),
         ("🔍","Explicabilité",PURPLE,
-         "Dashboard 7 pages : importance des features, sensibilité\npar canal, planification inverse — tout est justifié."),
+         "Dashboard 7 pages : importance des features, sensibilité\npar canal, planification inverse, tout est justifié."),
     ]
     pw, ph, gx, py = 3.8, 2.42, 0.27, 2.3
     for i,(icon,title,color,desc) in enumerate(pillars):
@@ -460,7 +460,7 @@ def s10_conclusion(prs):
         sz=16, bold=True, color=WHITE, align=PP_ALIGN.CENTER)
     txt(s, "Nous sommes disponibles pour répondre à vos questions.",
         0.5, sep_y+0.54, 12.3, 0.35, sz=12, italic=True, color=MUTED, align=PP_ALIGN.CENTER)
-    txt(s, "CHUEMBOU ADRIEN · QUANG DAT — EFREI Paris · M1 Data Science & IA · 2025–2026",
+    txt(s, "CHUEMBOU ADRIEN · QUANG DAT · EFREI Paris · M1 Data Science & IA · 2025–2026",
         0.5, sep_y+0.9, 12.3, 0.32, sz=10, color=MUTED, align=PP_ALIGN.CENTER)
     return s
 

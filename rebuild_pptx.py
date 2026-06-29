@@ -74,7 +74,7 @@ def header(sl, title, sub=None):
             size=Pt(11), color=TEXT_M)
     rect(sl, Inches(0.55), Inches(1.14), Inches(12.23), Inches(0.018), fill=BORDER)
 
-# ── SLIDE 1 — Cover ─────────────────────────────────────────────────────────
+# ── SLIDE 1 : Cover ─────────────────────────────────────────────────────────
 
 def s1(prs):
     sl = new_slide(prs); bg(sl, BG)
@@ -122,12 +122,12 @@ def s1(prs):
             size=Pt(8.5),color=TEXT_M)
     return sl
 
-# ── SLIDE 2 — Problématique ──────────────────────────────────────────────────
+# ── SLIDE 2 : Problématique ──────────────────────────────────────────────────
 
 def s2(prs):
     sl = new_slide(prs); bg(sl, BG)
     header(sl,"Problématique",
-           "Les budgets publicitaires sont encore trop souvent alloués à l'intuition — pas à la donnée.")
+           "Les budgets publicitaires sont encore trop souvent alloués à l'intuition, pas à la donnée.")
     # Quote banner
     rrect(sl,Inches(0.55),Inches(1.26),Inches(12.23),Inches(0.46),
           fill=BLUE_L,line=ACCENT,lw=Pt(1.0))
@@ -160,7 +160,7 @@ def s2(prs):
     ml = ["Modèles entraînés sur 4 572 campagnes documentées",
           "Prédiction du CA en temps réel selon le budget alloué",
           "4 canaux : TV · Radio · Social Media · Influenceur",
-          "R² > 0.994 — corrélation quasi-parfaite avec les ventes",
+          "R² > 0.994 : corrélation quasi-parfaite avec les ventes",
           "Simulation live : le revenu s'affiche instantanément"]
     for i,item in enumerate(ml):
         iy = cy+Inches(0.65)+i*Inches(0.78)
@@ -171,7 +171,7 @@ def s2(prs):
     stxt(vs,"VS",size=Pt(11),bold=True)
     return sl
 
-# ── SLIDE 3 — Objectifs ──────────────────────────────────────────────────────
+# ── SLIDE 3 : Objectifs ──────────────────────────────────────────────────────
 
 def s3(prs):
     sl = new_slide(prs); bg(sl, BG)
@@ -201,12 +201,12 @@ def s3(prs):
             size=Pt(10.5),color=TEXT_S,wrap=True)
     return sl
 
-# ── SLIDE 4 — Architecture ───────────────────────────────────────────────────
+# ── SLIDE 4 : Architecture ───────────────────────────────────────────────────
 
 def s4(prs):
     sl = new_slide(prs); bg(sl, BG)
     header(sl,"Architecture de la solution",
-           "Cinq couches modulaires — de la donnée brute à la décision business.")
+           "Cinq couches modulaires : de la donnée brute à la décision business.")
     layers = [
         ("DONNÉES",        TV,    "data/Dummy Data HSS.csv",
          "4 572 lignes · TV, Radio, Social Media, Influencer, Sales"),
@@ -214,9 +214,9 @@ def s4(prs):
          "StandardScaler + OneHotEncoder · Pipeline sklearn · Imputation médiane"),
         ("ENTRAÎNEMENT ML",RADIO, "src/train.py",
          "RandomizedSearchCV · 15 iter · 5-fold CV · 4 algorithmes → .pkl (joblib)"),
-        ("API REST",       ACCENT,"api/main.py — FastAPI",
+        ("API REST",       ACCENT,"api/main.py : FastAPI",
          "/predict · /predict/all · /metrics · /feature-importance · /stats · /health"),
-        ("DASHBOARD",      GREEN, "dashboard-next/ — Next.js 14",
+        ("DASHBOARD",      GREEN, "dashboard-next/ : Next.js 14",
          "TypeScript · Tailwind CSS · Recharts · Framer Motion · 7 pages · Clair/Sombre"),
     ]
     lh,lw,gap = Inches(0.9),Inches(12.23),Inches(0.06)
@@ -236,17 +236,17 @@ def s4(prs):
     # docker command bar
     dy = sy+5*(lh+gap)+Inches(0.04)
     rrect(sl,sx,dy,lw,Inches(0.4),fill=TEXT_P)
-    txt(sl,"⚡  docker-compose up  —  API :8000  ·  Dashboard :3000",
+    txt(sl,"⚡  docker-compose up  ·  API :8000  ·  Dashboard :3000",
         sx+Inches(0.2),dy+Inches(0.06),Inches(12.0),Inches(0.3),
         size=Pt(11),bold=True,color=WHITE)
     return sl
 
-# ── SLIDE 5 — Pipeline ML ────────────────────────────────────────────────────
+# ── SLIDE 5 : Pipeline ML ────────────────────────────────────────────────────
 
 def s5(prs):
     sl = new_slide(prs); bg(sl, BG)
     header(sl,"Pipeline ML : de la donnée brute à la prédiction",
-           "Un pipeline rigoureusement validé — de la saisie brute à l'inférence en moins de 50 ms.")
+           "Un pipeline rigoureusement validé : de la saisie brute à l'inférence en moins de 50 ms.")
     steps = [
         ("①","load_data()","CSV · 4 572 lignes\nValidation schéma",TV),
         ("②","build_preprocessor()","StandardScaler\n+ OneHotEncoder",RADIO),
@@ -278,12 +278,12 @@ def s5(prs):
         size=Pt(10.5),color=BLUE_D)
     return sl
 
-# ── SLIDE 6 — Modèles ML ─────────────────────────────────────────────────────
+# ── SLIDE 6 : Modèles ML ─────────────────────────────────────────────────────
 
 def s6(prs):
     sl = new_slide(prs); bg(sl, BG)
-    header(sl,"Les 4 modèles ML — Performances comparées",
-           "Tous les modèles dépassent R² = 0.99 — le Random Forest s'impose comme référence.")
+    header(sl,"Les 4 modèles ML : Performances comparées",
+           "Tous les modèles dépassent R² = 0.99 : le Random Forest s'impose comme référence.")
     models = [
         ("🏆 Random Forest",   0.9965,0.0028,TV,    True),
         ("Gradient Boosting",  0.9964,0.0028,RADIO,  False),
@@ -314,7 +314,7 @@ def s6(prs):
     bx,by = Inches(7.1),Inches(1.32)
     bw,bh = Inches(5.7),Inches(4.6)
     rrect(sl,bx,by,bw,bh,fill=WHITE,line=BORDER)
-    txt(sl,"R² par modèle  —  échelle 0.990 → 1.000",
+    txt(sl,"R² par modèle  ·  échelle 0.990 → 1.000",
         bx+Inches(0.2),by+Inches(0.14),Inches(5.3),Inches(0.3),
         size=Pt(9.5),color=TEXT_M,bold=True)
     bar_x = bx+Inches(1.65); max_bw = Inches(3.65)
@@ -333,17 +333,17 @@ def s6(prs):
             Inches(0.7),Inches(0.35),size=Pt(9.5),bold=True,color=bc)
     # Best model banner
     rrect(sl,Inches(0.55),Inches(6.22),Inches(12.23),Inches(0.75),fill=BLUE_L,line=ACCENT)
-    txt(sl,"🏆  Meilleur modèle : Random Forest  —  R² = 0.9965  ·  Explique 99.65 % de la variance des ventes",
+    txt(sl,"🏆  Meilleur modèle : Random Forest  ·  R² = 0.9965  ·  Explique 99.65 % de la variance des ventes",
         Inches(0.75),Inches(6.38),Inches(12.0),Inches(0.44),
         size=Pt(12.5),bold=True,color=BLUE_D)
     return sl
 
-# ── SLIDE 7 — Dashboard pages ────────────────────────────────────────────────
+# ── SLIDE 7 : Dashboard pages ────────────────────────────────────────────────
 
 def s7(prs):
     sl = new_slide(prs); bg(sl, BG)
-    header(sl,"Dashboard — 7 pages d'intelligence marketing",
-           "De la prédiction brute à l'optimisation stratégique — chaque page répond à une question business précise.")
+    header(sl,"Dashboard : 7 pages d'intelligence marketing",
+           "De la prédiction brute à l'optimisation stratégique : chaque page répond à une question business précise.")
     pages = [
         ("📊","Accueil",         TV,    "Vue globale · KPIs · corrélation canaux · benchmark revenus"),
         ("🎯","Prévision",       RADIO, "Sliders · prédiction temps réel · ROI · consensus 4 modèles"),
@@ -383,11 +383,11 @@ def _card(sl,cx,cy,cw,ch,page_data):
     txt(sl,desc,cx+Inches(0.15),cy+Inches(0.75),cw-Inches(0.3),Inches(1.75),
         size=Pt(9),color=TEXT_M,wrap=True)
 
-# ── SLIDE 8 — Démonstration ──────────────────────────────────────────────────
+# ── SLIDE 8 : Démonstration ──────────────────────────────────────────────────
 
 def s8(prs):
     sl = new_slide(prs); bg(sl, BG)
-    header(sl,"Démonstration — du budget au ROI en temps réel",
+    header(sl,"Démonstration : du budget au ROI en temps réel",
            "Cas réel : 90M€ TV · 10M€ Radio · 2M€ Social Media · Influenceur Mega.")
     steps = [
         ("①","Ajuster les sliders",TV,
@@ -429,7 +429,7 @@ def s8(prs):
                 size=Pt(22),color=TEXT_M,align=PP_ALIGN.CENTER)
     return sl
 
-# ── SLIDE 9 — Bilan critique ─────────────────────────────────────────────────
+# ── SLIDE 9 : Bilan critique ─────────────────────────────────────────────────
 
 def s9(prs):
     sl = new_slide(prs); bg(sl, BG)
@@ -437,7 +437,7 @@ def s9(prs):
            "Un système performant et démontrable aujourd'hui, avec une trajectoire claire d'amélioration.")
     cols_data = [
         ("💪  Forces",GREEN,[
-            "R² > 0.99 sur les 4 modèles — prédictions ultra-précises",
+            "R² > 0.99 sur les 4 modèles : prédictions ultra-précises",
             "Architecture modulaire et Docker-ready",
             "API REST documentée et scalable (FastAPI)",
             "Dashboard : 7 pages, mode clair/sombre, responsive",
@@ -445,7 +445,7 @@ def s9(prs):
             "Déployable : docker-compose up",
         ]),
         ("⚠️  Limites",AMBER,[
-            "Dataset synthétique — à valider sur données réelles",
+            "Dataset synthétique : à valider sur données réelles",
             "Pas de feedback ni de ré-entraînement automatique",
             "Saisonnalité et tendances non modélisées",
             "Influencer : variable catégorielle simple",
@@ -476,7 +476,7 @@ def s9(prs):
                 size=Pt(9.5),color=TEXT_S,wrap=True)
     return sl
 
-# ── SLIDE 10 — Conclusion ────────────────────────────────────────────────────
+# ── SLIDE 10 : Conclusion ────────────────────────────────────────────────────
 
 def s10(prs):
     sl = new_slide(prs); bg(sl, BG)
@@ -484,7 +484,7 @@ def s10(prs):
     txt(sl,"Conclusion",Inches(0.55),Inches(0.18),Inches(12.0),Inches(0.55),
         size=Pt(25),bold=True,color=TEXT_P)
     rrect(sl,Inches(0.55),Inches(0.85),Inches(12.23),Inches(0.85),fill=BLUE_L,line=ACCENT)
-    txt(sl,"ROI Intelligence démontre qu'il est possible de transformer un budget publicitaire\nen décision data-driven — précise, explicable et actionnable.",
+    txt(sl,"ROI Intelligence démontre qu'il est possible de transformer un budget publicitaire\nen décision data-driven : précise, explicable et actionnable.",
         Inches(0.75),Inches(0.96),Inches(12.0),Inches(0.68),
         size=Pt(12.5),color=BLUE_D,italic=True)
     pillars = [
@@ -493,7 +493,7 @@ def s10(prs):
         ("🧱","Scalabilité",   RADIO,
          "Architecture Docker-ready : API FastAPI indépendante du frontend, extensible à de nouveaux canaux."),
         ("🔍","Explicabilité", GREEN,
-         "Dashboard 7 pages : importance des features, sensibilité par canal, planification inverse — tout est justifié."),
+         "Dashboard 7 pages : importance des features, sensibilité par canal, planification inverse, tout est justifié."),
     ]
     pw,ph = Inches(3.87),Inches(2.55)
     py = Inches(1.9)
@@ -515,7 +515,7 @@ def s10(prs):
     txt(sl,"Nous sommes disponibles pour répondre à vos questions.",
         Inches(0.55),Inches(5.4),Inches(12.23),Inches(0.4),
         size=Pt(13),color=TEXT_M,align=PP_ALIGN.CENTER)
-    txt(sl,"CHUEMBOU ADRIEN · QUANG DAT  —  EFREI Paris · M1 Data Science & IA · 2025–2026",
+    txt(sl,"CHUEMBOU ADRIEN · QUANG DAT  ·  EFREI Paris · M1 Data Science & IA · 2025–2026",
         Inches(0.55),Inches(6.9),Inches(12.23),Inches(0.38),
         size=Pt(10),color=TEXT_M,align=PP_ALIGN.CENTER)
     return sl

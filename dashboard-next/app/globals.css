@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════
-   DESIGN TOKENS — Dark (default)
+   DESIGN TOKENS: Dark (default)
 ═══════════════════════════════════════════════════════════ */
 :root,
 [data-theme="dark"] {
@@ -59,7 +59,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════
-   DESIGN TOKENS — Light
+   DESIGN TOKENS: Light
 ═══════════════════════════════════════════════════════════ */
 [data-theme="light"] {
   /* Backgrounds */

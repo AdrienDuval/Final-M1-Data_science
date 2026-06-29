@@ -120,7 +120,7 @@ def rf_prediction_distribution(tv, radio, sm, inf):
 def model_selector(key_suffix=""):
     """Return the chosen regression model.
 
-    The UI selection was removed — the dashboard always uses the best-performing
+    The UI selection was removed. The dashboard always uses the best-performing
     model by default. This helper ensures `st.session_state.active_model` is set
     and returns it (no widget rendered).
     """
@@ -135,7 +135,7 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Predict", "Budget Simulator", "Target Planner",
 ])
 
-# ── TAB 1 — Data Overview ─────────────────────────────────────────────────────
+# ── TAB 1: Data Overview ─────────────────────────────────────────────────────
 with tab1:
     st.header("Data Overview")
     c1, c2, c3, c4 = st.columns(4)
@@ -184,7 +184,7 @@ with tab1:
             ax4.set_ylabel("Count"); plt.xticks(rotation=0)
             plt.tight_layout(); st.pyplot(fig4); plt.close()
 
-# ── TAB 2 — Model Comparison ──────────────────────────────────────────────────
+# ── TAB 2: Model Comparison ──────────────────────────────────────────────────
 with tab2:
     st.header("Model Comparison")
     col_r, col_c = st.columns(2)
@@ -258,7 +258,7 @@ with tab2:
         else:
             st.info("Run `python main.py` option 3 to generate metrics.")
 
-# ── TAB 3 — Feature Importance ────────────────────────────────────────────────
+# ── TAB 3: Feature Importance ────────────────────────────────────────────────
 with tab3:
     st.header("Feature Importance")
     shap_img = ROOT / "figures" / "shap_summary.png"
@@ -300,7 +300,7 @@ with tab3:
                 ax7.set_xlabel("Importance"); plt.tight_layout()
                 st.pyplot(fig7); plt.close()
 
-# ── TAB 4 — Predict ───────────────────────────────────────────────────────────
+# ── TAB 4: Predict ───────────────────────────────────────────────────────────
 with tab4:
     st.header("Predict Sales & Campaign Performance")
 
@@ -334,7 +334,7 @@ with tab4:
 
         # Notify if model was overridden due to OOR
         if used_model != chosen_model:
-            st.info(f"⚡ **{fmt(chosen_model)}** can't extrapolate beyond training range — "
+            st.info(f"⚡ **{fmt(chosen_model)}** can't extrapolate beyond training range, "
                     f"used **{fmt(used_model)}** instead.")
 
         with st.spinner("Classifying campaign performance..."):
@@ -368,7 +368,7 @@ with tab4:
                 unsafe_allow_html=True,
             )
 
-# ── TAB 5 — Budget Simulator ──────────────────────────────────────────────────
+# ── TAB 5: Budget Simulator ──────────────────────────────────────────────────
 with tab5:
     st.header("Budget Simulator")
     st.caption("Set a base budget, then drag the % sliders to see how sales change in real time.")
@@ -389,7 +389,7 @@ with tab5:
                 help=f"Starting Social Media budget. Training max: {TRAIN_BOUNDS['Social Media'][1]:.1f} M.")
             base_inf = st.selectbox("Base Influencer Tier", influencer_options(), key="sim_inf",
                 help="Influencer tier used throughout the simulation.")
-            st.caption("🟠 Base values exceed training range — using Linear Regression."
+            st.caption("🟠 Base values exceed training range, using Linear Regression."
                        if is_oor(base_tv, base_radio, base_sm)
                        else "🟢 All base values within training range.")
 
@@ -437,19 +437,19 @@ with tab5:
         ax_sim.legend(); plt.tight_layout()
         st.pyplot(fig_sim); plt.close()
 
-# ── TAB 6 — Target Planner ────────────────────────────────────────────────────
+# ── TAB 6: Target Planner ────────────────────────────────────────────────────
 with tab6:
     st.header("Target Planner")
     st.caption(
-        "Two tools in one: **① Inverse Prediction** — set a sales target and find the budget that reaches it. "
-        "**② Probability Analysis** — given your current budget, estimate the chance of hitting a sales goal."
+        "Two tools in one: **① Inverse Prediction**: set a sales target and find the budget that reaches it. "
+        "**② Probability Analysis**: given your current budget, estimate the chance of hitting a sales goal."
     )
 
     if not MODELS_LOADED:
         st.warning("Models not loaded. Run `python main.py` first.")
     else:
         # ── Section 1: Inverse Prediction ────────────────────────────────────
-        st.subheader("① Inverse Prediction — Budget for a Sales Target")
+        st.subheader("① Inverse Prediction: Budget for a Sales Target")
         st.markdown(
             "Enter a target sales figure and choose an influencer tier. "
             "The optimizer will find the TV / Radio / Social Media mix that gets closest to your goal."
@@ -461,7 +461,7 @@ with tab6:
             # Tree models (RF, GB) are hard-capped at their training output ceiling;
             # Linear Regression and MLP can extrapolate so we allow 3× the training max.
             _max_train_sales = float(df["Sales"].max())
-            # Use the active (best) model — users no longer choose the model manually.
+            # Use the active (best) model. Users no longer choose the model manually.
             _cur_ip_model    = st.session_state.get("active_model", model_options[0])
             _target_ceiling  = float(
                 _max_train_sales if _cur_ip_model in TREE_MODELS
@@ -474,9 +474,9 @@ with tab6:
                 max_value=_target_ceiling,
                 step=10.0,
                 help=(
-                    f"Max: ${_target_ceiling:,.0f}M — training ceiling for tree models."
+                    f"Max: ${_target_ceiling:,.0f}M, training ceiling for tree models."
                     if _cur_ip_model in TREE_MODELS
-                    else f"Max: ${_target_ceiling:,.0f}M — Linear Regression / MLP can extrapolate."
+                    else f"Max: ${_target_ceiling:,.0f}M, Linear Regression / MLP can extrapolate."
                 ),
             )
             ip_inf = st.selectbox("Influencer Tier", influencer_options(), key="ip_inf",
@@ -502,7 +502,7 @@ with tab6:
                 st.warning(
                     f"**Target ${target_sales:,.0f}M is above the training ceiling "
                     f"(${max_train_sales:,.0f}M).** "
-                    f"Tree models cannot extrapolate beyond values seen during training — "
+                    f"Tree models cannot extrapolate beyond values seen during training, "
                     f"switched automatically to **Linear Regression** for this optimization."
                 )
 
@@ -546,7 +546,7 @@ with tab6:
                 # Model-override notices
                 if target_oor:
                     st.info(
-                        f"Used **Linear Regression** — target ${target_sales:,.0f}M exceeds "
+                        f"Used **Linear Regression**: target ${target_sales:,.0f}M exceeds "
                         f"training max ${max_train_sales:,.0f}M. Linear Regression can extrapolate; "
                         "tree models are hard-capped at their training output range."
                     )
@@ -583,7 +583,7 @@ with tab6:
         st.markdown("---")
 
         # ── Section 2: Probability Analysis ──────────────────────────────────
-        st.subheader("② Probability Analysis — Chance of Hitting a Sales Goal")
+        st.subheader("② Probability Analysis: Chance of Hitting a Sales Goal")
         st.markdown(
             "Given your budget inputs, the Random Forest ensemble estimates how likely you are "
             "to reach a sales goal (using the spread of individual tree predictions)."

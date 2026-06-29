@@ -58,7 +58,7 @@ export default function Sidebar() {
       {/* Footer */}
       <div className="px-6 py-4 border-t border-slate-800">
         <p className="text-xs text-slate-600">EFREI M1 Data Engineering</p>
-        <p className="text-xs text-slate-700 mt-0.5">RNCP40875 — Bloc 2</p>
+        <p className="text-xs text-slate-700 mt-0.5">RNCP40875 · Bloc 2</p>
       </div>
     </aside>
   );

@@ -3,7 +3,7 @@
 **EFREI Paris — Master 1 Data Engineering — RNCP40875**
 **Authors: LE Quang Dat · Adrien CHUEMBOU MBAH**
 
-Predicts sales from multi-channel advertising budgets (TV, Radio, Social Media, Influencer tier) using four regression and four classification models, exposed via a FastAPI backend and a Next.js dashboard. A Streamlit interface provides interactive budget simulation, inverse planning, and probability analysis.
+Predicts sales from multi-channel advertising budgets (TV, Radio, Social Media, Influencer tier) using four regression and four classification models, exposed via a FastAPI backend and a Next.js dashboard. A Streamlit interface provides interactive budget simulation and inverse planning, plus probability analysis.
 
 ---
 

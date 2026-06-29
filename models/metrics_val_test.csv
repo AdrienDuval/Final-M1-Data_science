@@ -1,5 +1,5 @@
 Model,Val_R2,Test_R2,Val_RMSE,Test_RMSE
 linear_regression,0.9956,0.994,5.8241,7.2545
 random_forest,0.9966,0.9969,5.178,5.2244
-gradient_boosting,0.9965,0.9973,5.0924,4.8308
+gradient_boosting,0.9965,0.9972,5.0924,4.9082
 mlp,0.9955,0.994,5.9306,7.225

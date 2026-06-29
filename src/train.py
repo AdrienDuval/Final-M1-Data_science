@@ -2,10 +2,10 @@
 Training script for the FastAPI pipeline.
 
 Trains 4 regression models using RandomizedSearchCV, then saves:
-  models/{name}.pkl       — fitted sklearn Pipeline (preprocessor + model)
-  models/splits.pkl       — exact train/test split used (for evaluate.py)
-  models/model_list.json  — ordered model names (loaded by api/main.py)
-  models/cv_results.json  — cross-validation R² per model
+  models/{name}.pkl       : fitted sklearn Pipeline (preprocessor + model)
+  models/splits.pkl       : exact train/test split used (for evaluate.py)
+  models/model_list.json  : ordered model names (loaded by api/main.py)
+  models/cv_results.json  : cross-validation R² per model
 
 Usage:
     python src/train.py
@@ -61,7 +61,7 @@ def define_models() -> dict:
             random_state=RANDOM_STATE, verbosity=0,
         )
     else:
-        print("XGBoost not found — falling back to sklearn GradientBoostingRegressor.")
+        print("XGBoost not found. Falling back to sklearn GradientBoostingRegressor.")
         models["gradient_boosting"] = GradientBoostingRegressor(
             n_estimators=300, learning_rate=0.05, max_depth=5,
             random_state=RANDOM_STATE,

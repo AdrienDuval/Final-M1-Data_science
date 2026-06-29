@@ -77,7 +77,7 @@ function Background() {
           backgroundSize: "30px 30px",
         }}
       />
-      {/* Orb 1 — blue, top-left */}
+      {/* Orb 1: blue, top-left */}
       <div
         className="bg-orb absolute -top-52 -left-28 w-[750px] h-[750px] rounded-full"
         style={{
@@ -85,7 +85,7 @@ function Background() {
           filter: "blur(72px)",
         }}
       />
-      {/* Orb 2 — purple, top-right */}
+      {/* Orb 2: purple, top-right */}
       <div
         className="bg-orb absolute -top-36 -right-20 w-[640px] h-[640px] rounded-full"
         style={{
@@ -93,7 +93,7 @@ function Background() {
           filter: "blur(88px)",
         }}
       />
-      {/* Orb 3 — green, mid-lower */}
+      {/* Orb 3: green, mid-lower */}
       <div
         className="bg-orb absolute top-[50%] left-[15%] w-[520px] h-[520px] rounded-full"
         style={{
@@ -101,7 +101,7 @@ function Background() {
           filter: "blur(90px)",
         }}
       />
-      {/* Orb 4 — cyan accent, far right */}
+      {/* Orb 4: cyan accent, far right */}
       <div
         className="bg-orb absolute top-[30%] right-[-80px] w-[380px] h-[380px] rounded-full"
         style={{

@@ -9,7 +9,7 @@ venv/
 env/
 *.egg-info/
 
-# ML model binaries — regenerate with: python src/train.py
+# ML model binaries, regenerate with: python src/train.py
 models/*.pkl
 models/splits.pkl
 
@@ -30,5 +30,16 @@ Thumbs.db
 .idea/
 .vscode/
 
-# Cursor IDE (local agent skills — not part of the project deliverable)
+# Cursor IDE (local agent skills, not part of the project deliverable)
 .cursor/skills/
+
+# Claude Code / AI assistant tooling
+.claude/
+CLAUDE.md
+
+# AI-generated helper docs (not project deliverables; README.md is kept)
+BEGINNER_ML_GUIDE.md
+GAMMA_PROMPT.md
+PRESENTATION_SPEECH_10MIN.md
+DOCUMENTATION_PROJET.md
+dashboard-next/REDESIGN_COMPLETE.md

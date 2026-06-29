@@ -134,7 +134,7 @@ def plot_val_test_comparison(val_test_df: pd.DataFrame,
     width = 0.35
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
-    fig.suptitle("Validation (CV) vs Test Metrics — All 4 Models", fontsize=13, fontweight="bold")
+    fig.suptitle("Validation (CV) vs Test Metrics: All 4 Models", fontsize=13, fontweight="bold")
 
     # R² (accuracy proxy)
     ax = axes[0]
@@ -174,7 +174,7 @@ def plot_mlp_learning_curves(pipeline, fname: str = "mlp_learning_curves.png"):
     mlp = (pipeline.named_steps["model"]
            if hasattr(pipeline, "named_steps") else pipeline)
     if not hasattr(mlp, "loss_curve_"):
-        print("  MLP loss_curve_ not available — skipping.")
+        print("  MLP loss_curve_ not available. Skipping.")
         return
 
     epochs = range(1, len(mlp.loss_curve_) + 1)
@@ -186,7 +186,7 @@ def plot_mlp_learning_curves(pipeline, fname: str = "mlp_learning_curves.png"):
     axes[0].set(xlabel="Epoch", ylabel="MSE Loss", title="Training Loss per Epoch")
     axes[0].grid(alpha=0.3)
 
-    # Validation score (R²) — only present when early_stopping=True
+    # Validation score (R²): only present when early_stopping=True
     if hasattr(mlp, "validation_scores_") and mlp.validation_scores_:
         val_epochs = range(1, len(mlp.validation_scores_) + 1)
         axes[1].plot(val_epochs, mlp.validation_scores_, color="#F28B30", linewidth=1.5)

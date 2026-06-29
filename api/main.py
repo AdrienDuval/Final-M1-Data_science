@@ -1,5 +1,5 @@
 """
-FastAPI backend — serves predictions and dataset stats to the Next.js dashboard.
+FastAPI backend: serves predictions and dataset stats to the Next.js dashboard.
 
 Usage:
     uvicorn api.main:app --reload --port 8000   (run from project root)
@@ -11,11 +11,11 @@ Endpoints:
     GET  /metrics/classification
     GET  /feature-importance
     GET  /simulate/tv-sweep
-    POST /predict         — best model only
-    POST /predict/all     — all models (for simulator comparison)
-    POST /classify        — campaign performance classification
-    POST /optimize        — inverse prediction (budget → target sales)
-    POST /probability     — RF uncertainty / P(sales ≥ goal)
+    POST /predict         : best model only
+    POST /predict/all     : all models (for simulator comparison)
+    POST /classify        : campaign performance classification
+    POST /optimize        : inverse prediction (budget → target sales)
+    POST /probability     : RF uncertainty / P(sales ≥ goal)
 """
 import sys
 import json
@@ -293,7 +293,7 @@ def analytics():
         for _, r in samp.iterrows()
     ]
 
-    # ── Sales by influencer — box stats ───────────────────────────────────────
+    # ── Sales by influencer: box stats ───────────────────────────────────────
     sales_by_inf: dict = {}
     for inf, grp in df.groupby("Influencer"):
         s = grp[TARGET_REG].dropna()

@@ -1,6 +1,6 @@
 services:
 
-  # ── FastAPI — ML backend ────────────────────────────────────────────────────
+  # ── FastAPI: ML backend ────────────────────────────────────────────────────
   api:
     build:
       context: .
@@ -16,7 +16,7 @@ services:
       retries: 5
       start_period: 10s
 
-  # ── Next.js — dashboard frontend ───────────────────────────────────────────
+  # ── Next.js: dashboard frontend ───────────────────────────────────────────
   web:
     build:
       context: ./dashboard-next

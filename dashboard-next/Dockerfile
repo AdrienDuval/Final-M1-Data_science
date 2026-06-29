@@ -1,4 +1,4 @@
-# ── Next.js dashboard — multi-stage build ────────────────────────────────────
+# ── Next.js dashboard: multi-stage build ────────────────────────────────────
 
 # Stage 1: install dependencies
 FROM node:20-alpine AS deps
@@ -15,7 +15,7 @@ COPY . .
 # Next.js expects public/ for static assets; ensure it exists even if empty
 RUN mkdir -p public
 
-# The rewrite proxy destination — overridden at build time via docker-compose
+# The rewrite proxy destination, overridden at build time via docker-compose
 ARG API_URL=http://api:8000
 ENV API_URL=$API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
