@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import {
   TrendingUp, TrendingDown, Zap, Activity,
-  DollarSign, BarChart3,
+  DollarSign, BarChart3, Loader2,
 } from "lucide-react";
 import { Tip } from "@/components/Tooltip";
 import { api, PredictResponse, ClassifyResponse } from "@/lib/api";
@@ -210,6 +210,7 @@ export default function PredictPage() {
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    setLoading(true); // show the updating state immediately on any slider/input change
     debounceRef.current = setTimeout(runPrediction, 650);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [runPrediction]);
@@ -352,8 +353,8 @@ export default function PredictPage() {
           <div className="flex items-center gap-2 text-xs" style={{ color: "var(--text-muted)" }}>
             {loading ? (
               <>
-                <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--accent)" }} />
-                <span>{tc("predicting")}</span>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: "var(--accent)" }} />
+                <span style={{ color: "var(--accent)", fontWeight: 500 }}>{tc("predicting")}</span>
               </>
             ) : (
               <>
@@ -403,13 +404,30 @@ export default function PredictPage() {
 
                   <div className="flex items-start justify-between relative">
                     <div>
-                      <p className="text-label mb-3">{t("predictedRevenue")}</p>
+                      <div className="flex items-center gap-2 mb-3">
+                        <p className="text-label">{t("predictedRevenue")}</p>
+                        <AnimatePresence>
+                          {loading && (
+                            <motion.span
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.9 }}
+                              transition={{ duration: 0.18 }}
+                              className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                              style={{ background: "var(--accent-dim)", color: "var(--accent)" }}>
+                              <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                              {tc("updating")}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </div>
                       <p className="text-6xl font-bold tracking-tight leading-none"
-                        style={{ color: "var(--text-primary)" }}>
+                        style={{ color: "var(--text-primary)", opacity: loading ? 0.4 : 1, transition: "opacity 0.25s ease" }}>
                         $<SpringNumber value={result.predicted_sales} decimals={2} />
                         <span className="text-2xl ml-1" style={{ color: "var(--text-muted)" }}>M</span>
                       </p>
-                      <div className="flex items-center gap-2 mt-3">
+                      <div className="flex items-center gap-2 mt-3"
+                        style={{ opacity: loading ? 0.4 : 1, transition: "opacity 0.25s ease" }}>
                         {result.vs_average >= 0
                           ? <TrendingUp className="w-4 h-4" style={{ color: "var(--green)" }} />
                           : <TrendingDown className="w-4 h-4" style={{ color: "var(--red)" }} />}
@@ -434,7 +452,8 @@ export default function PredictPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-4"
+                  style={{ opacity: loading ? 0.4 : 1, transition: "opacity 0.25s ease" }}>
                   <div className="rounded-card p-5 border"
                     style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}>
                     <div className="flex items-center gap-2 mb-3">

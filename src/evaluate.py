@@ -211,7 +211,8 @@ def compute_val_test_metrics_all(models_dir: Path,
                                   y_train, y_test) -> pd.DataFrame:
     """
     Run 5-fold CV (validation) and test-set evaluation for all 4 regression models.
-    X_tr / X_te must already be preprocessed (numpy arrays from the fitted preprocessor).
+    X_tr / X_te are raw feature frames; each model is a full Pipeline that handles
+    its own preprocessing.
     """
     from sklearn.model_selection import cross_validate
     from sklearn.metrics import make_scorer, r2_score, mean_squared_error
@@ -224,13 +225,13 @@ def compute_val_test_metrics_all(models_dir: Path,
 
     rows = []
     for name in REG_NAMES:
-        path = models_dir / f"{name}_regression.pkl"
+        path = models_dir / f"{name}.pkl"
         if not path.exists():
             print(f"  Skipping {name} (not found)")
             continue
         m = joblib.load(path)
 
-        # Test metrics (model expects preprocessed arrays)
+        # Test metrics (full pipeline, raw X)
         preds     = m.predict(X_te)
         test_r2   = round(float(r2_score(y_te_arr, preds)), 4)
         test_rmse = round(float(np.sqrt(mean_squared_error(y_te_arr, preds))), 4)
@@ -314,27 +315,84 @@ def plot_shap(model, X_transformed, feature_names: list,
 
 # ── Evaluation routines ───────────────────────────────────────────────────────
 
+def plot_learning_curves_all(models_dir: Path, X_tr, y_train):
+    """
+    Generate one learning-curve PNG per model showing train R² and CV R²
+    as a function of training-set size.  Saves figures/learning_curve_{name}.png.
+    """
+    from sklearn.model_selection import learning_curve
+    from sklearn.metrics import make_scorer, r2_score
+
+    scorer = make_scorer(r2_score)
+    train_sizes_frac = np.linspace(0.1, 1.0, 8)
+    y_arr = np.array(y_train)
+
+    label_map = {
+        "linear_regression": "Linear Regression",
+        "random_forest":     "Random Forest",
+        "gradient_boosting": "Gradient Boosting",
+        "mlp":               "Neural Net (MLP)",
+    }
+
+    for name in REG_NAMES:
+        path = models_dir / f"{name}.pkl"
+        if not path.exists():
+            print(f"  Skipping {name} (not found)")
+            continue
+        print(f"  Computing learning curve: {name} ...")
+        m = joblib.load(path)
+
+        sizes, train_sc, val_sc = learning_curve(
+            m, X_tr, y_arr,
+            train_sizes=train_sizes_frac,
+            cv=3,
+            scoring=scorer,
+            n_jobs=1,
+            shuffle=True,
+            random_state=42,
+        )
+
+        t_mean, t_std = train_sc.mean(axis=1), train_sc.std(axis=1)
+        v_mean, v_std = val_sc.mean(axis=1),   val_sc.std(axis=1)
+
+        fig, ax = plt.subplots(figsize=(7, 4))
+        ax.plot(sizes, t_mean, "o-", color="#4C8BE2", lw=2, label="Training R²")
+        ax.fill_between(sizes, t_mean - t_std, t_mean + t_std,
+                        alpha=0.15, color="#4C8BE2")
+        ax.plot(sizes, v_mean, "s-", color="#F28B30", lw=2, label="Validation R² (CV)")
+        ax.fill_between(sizes, v_mean - v_std, v_mean + v_std,
+                        alpha=0.15, color="#F28B30")
+
+        floor = max(0.0, min(v_mean.min(), t_mean.min()) - 0.02)
+        ax.set_ylim(floor, 1.005)
+        ax.set(xlabel="Training samples", ylabel="R²",
+               title=f"Learning Curves — {label_map.get(name, name)}")
+        ax.legend(loc="lower right")
+        ax.grid(alpha=0.3)
+        plt.tight_layout()
+
+        fname = f"learning_curve_{name}.png"
+        fig.savefig(FIGURES_DIR / fname, dpi=100)
+        plt.close(fig)
+        print(f"  Saved -> figures/{fname}")
+
+
 def evaluate_regression(run_shap: bool = False) -> pd.DataFrame:
+    # Evaluates the SAME models the API serves: models/{name}.pkl
+    # (full sklearn Pipelines: preprocessor + model). Raw X is passed straight
+    # to each pipeline — no separate preprocessor transform.
     df = load_data()
     X_train, X_test, y_train, y_test = split_data(df, task="regression")
-    prep = joblib.load(MODELS_DIR / "pipeline_regression.pkl")
-    X_tr = prep.transform(X_train)
-    X_te = prep.transform(X_test)
-
-    feature_names = (NUMERIC_FEATURES +
-                     list(prep.named_transformers_["cat"]
-                          .named_steps["encoder"]
-                          .get_feature_names_out(CATEGORICAL_FEATURES)))
 
     rows, best_r2, best_model, best_name = [], -np.inf, None, None
 
     for name in REG_NAMES:
-        path = MODELS_DIR / f"{name}_regression.pkl"
+        path = MODELS_DIR / f"{name}.pkl"
         if not path.exists():
             print(f"  Skipping {name} (not found)")
             continue
         m      = joblib.load(path)
-        preds  = m.predict(X_te)
+        preds  = m.predict(X_test)
         mets   = regression_metrics(y_test, preds)
         mets["Model"] = name
         rows.append(mets)
@@ -346,31 +404,45 @@ def evaluate_regression(run_shap: bool = False) -> pd.DataFrame:
     print(results.to_string(index=False))
     results.to_csv(MODELS_DIR / "metrics_regression.csv", index=False)
 
+    # Feature names + transformed test set come from the best pipeline's preprocessor;
+    # native importance and SHAP operate on the bare model in transformed space.
+    prep          = best_model.named_steps["preprocessor"]
+    bare_model    = best_model.named_steps["model"]
+    feature_names = (NUMERIC_FEATURES +
+                     list(prep.named_transformers_["cat"]
+                          .named_steps["encoder"]
+                          .get_feature_names_out(CATEGORICAL_FEATURES)))
+    X_te_arr = prep.transform(X_test)
+
     plot_metrics_bar(results, "R2", "Regression R² by Model", "regression_r2.png")
-    plot_residuals(y_test, best_model.predict(X_te), title=best_name)
-    plot_feature_importance(best_model, feature_names)
-    plot_permutation_importance(best_model, X_te, y_test.values, feature_names)
+    plot_residuals(y_test, best_model.predict(X_test), title=best_name)
+    plot_feature_importance(bare_model, feature_names)
+    plot_permutation_importance(bare_model, X_te_arr, y_test.values, feature_names)
 
     if run_shap:
-        plot_shap(best_model, X_te, feature_names)
+        plot_shap(bare_model, X_te_arr, feature_names)
 
     # ── Val vs Test comparison for all 4 models ───────────────────────────────
     print("\n=== VALIDATION (CV) vs TEST - ALL 4 MODELS ===")
-    val_test = compute_val_test_metrics_all(MODELS_DIR, X_tr, X_te,
+    val_test = compute_val_test_metrics_all(MODELS_DIR, X_train, X_test,
                                             y_train, y_test)
     val_test.to_csv(MODELS_DIR / "metrics_val_test.csv", index=False)
     plot_val_test_comparison(val_test)
 
-    # ── MLP learning curves ───────────────────────────────────────────────────
-    mlp_path = MODELS_DIR / "mlp_regression.pkl"
+    # ── MLP epoch-level learning curves ──────────────────────────────────────
+    mlp_path = MODELS_DIR / "mlp.pkl"
     if mlp_path.exists():
         plot_mlp_learning_curves(joblib.load(mlp_path))
+
+    # ── Training vs CV learning curves for all 4 models ──────────────────────
+    print("\n=== LEARNING CURVES (train vs CV) — ALL 4 MODELS ===")
+    plot_learning_curves_all(MODELS_DIR, X_train, y_train)
 
     top2 = results.nlargest(2, "R2")["Model"].tolist()
     print("\n=== 5-FOLD CV (top-2 models) ===")
     for name in top2:
-        m = joblib.load(MODELS_DIR / f"{name}_regression.pkl")
-        print(f"  {name}: {cross_validate_model(m, X_tr, y_train.values, 'regression')}")
+        m = joblib.load(MODELS_DIR / f"{name}.pkl")
+        print(f"  {name}: {cross_validate_model(m, X_train, y_train.values, 'regression')}")
 
     return results
 

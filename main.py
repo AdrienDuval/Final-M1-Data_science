@@ -1,5 +1,4 @@
 import sys
-import signal
 import subprocess
 import time
 from pathlib import Path
@@ -9,13 +8,17 @@ MODELS    = ROOT / "models"
 FIGURES   = ROOT / "figures"
 SRC       = ROOT / "src"
 
+# Regression serving artifacts — produced by src/train.py (used by the API)
 REG_MODELS = [
-    "pipeline_regression.pkl",
-    "linear_regression_regression.pkl",
-    "random_forest_regression.pkl",
-    "gradient_boosting_regression.pkl",
-    "mlp_regression.pkl",
+    "model_list.json",
+    "splits.pkl",
+    "cv_results.json",
+    "linear_regression.pkl",
+    "random_forest.pkl",
+    "gradient_boosting.pkl",
+    "mlp.pkl",
 ]
+# Classification serving artifacts — produced by src/models.py (used by /classify)
 CLF_MODELS = [
     "pipeline_classification.pkl",
     "label_encoder.pkl",
@@ -83,7 +86,9 @@ def step_train():
         for f in missing:
             print(f"    • {f}")
 
-    print("\n  Training regression models...")
+    print("\n  Training regression models (API)  — src/train.py ...")
+    _run("train.py")
+    print("\n  Training classification models    — src/models.py ...")
     _run("models.py")
 
 
@@ -110,41 +115,19 @@ def step_evaluate():
     _run("evaluate.py")
 
 
-def step_dashboard():
-    _header("STEP 3: Dashboard")
-    print("  Launching Streamlit dashboard at http://localhost:8501")
-    print("  Press Ctrl+C to stop.\n")
-    subprocess.run(
-        ["streamlit", "run", str(ROOT / "dashboard" / "app.py"),
-         "--server.headless", "false"],
-        cwd=str(ROOT),
-    )
+def step_serve():
+    _header("STEP — Next.js Dashboard + FastAPI")
 
-
-# API model files produced by src/train.py (used by FastAPI)
-API_MODELS = [
-    "linear_regression.pkl",
-    "random_forest.pkl",
-    "gradient_boosting.pkl",
-    "mlp.pkl",
-]
-
-def step_nextjs():
-    _header("STEP: Next.js Dashboard + FastAPI")
-
-    # Auto-train API models if missing
-    if not _all_exist(API_MODELS, MODELS):
-        missing = [f for f in API_MODELS if not (MODELS / f).exists()]
-        print(f"  Missing {len(missing)} API model file(s):")
+    # Auto-train any missing serving artifacts
+    if not _all_exist(REG_MODELS + CLF_MODELS, MODELS):
+        missing = [f for f in REG_MODELS + CLF_MODELS if not (MODELS / f).exists()]
+        print(f"  Missing {len(missing)} model file(s) — training first:")
         for f in missing:
             print(f"    • {f}")
-        print("\n  Training models (src/train.py)…")
-        result = subprocess.run([sys.executable, str(SRC / "train.py")], cwd=str(ROOT))
-        if result.returncode != 0:
-            print("\n[ERROR] Training failed. Aborting.")
-            sys.exit(result.returncode)
+        _run("train.py")
+        _run("models.py")
     else:
-        print("  ✓ API models found. Skipping training.")
+        print("  ✓ Serving models found — skipping training.")
 
     # Launch FastAPI
     print("\n  Starting FastAPI on http://localhost:8000 …")
@@ -192,10 +175,10 @@ def main():
     # Quick status report
     _header("STATUS CHECK")
     checks = {
-        "Regression models":    _all_exist(REG_MODELS, MODELS),
-        "Classification models": _all_exist(CLF_MODELS, MODELS),
-        "Evaluation metrics":   _all_exist(METRIC_FILES, MODELS),
-        "Figures":              _all_exist(FIGURE_FILES, FIGURES),
+        "Regression models (API)": _all_exist(REG_MODELS, MODELS),
+        "Classification models":   _all_exist(CLF_MODELS, MODELS),
+        "Evaluation metrics":      _all_exist(METRIC_FILES, MODELS),
+        "Figures":                 _all_exist(FIGURE_FILES, FIGURES),
     }
     for label, ok in checks.items():
         status = "✓" if ok else "✗ missing"
@@ -203,33 +186,30 @@ def main():
 
     # Mode selection
     _header("SELECT MODE")
-    print("  1) Full pipeline       (train → evaluate → Streamlit dashboard)")
+    print("  1) Full pipeline       (train → evaluate → Next.js + FastAPI)")
     print("  2) Train only")
     print("  3) Evaluate only")
-    print("  4) Streamlit dashboard only")
-    print("  5) Next.js dashboard + FastAPI  ← new")
-    print("  6) Exit")
+    print("  4) Next.js dashboard + FastAPI")
+    print("  5) Exit")
 
     while True:
-        choice = input("\n  Enter choice [1-6]: ").strip()[:1]
-        if choice in ("1", "2", "3", "4", "5", "6"):
+        choice = input("\n  Enter choice [1-5]: ").strip()[:1]
+        if choice in ("1", "2", "3", "4", "5"):
             break
-        print("  ✗ Invalid. Please enter a number between 1 and 6.")
+        print("  ✗ Invalid — please enter a number between 1 and 5.")
 
     if choice == "1":
         step_train()
         step_evaluate()
-        if _ask("\nLaunch dashboard now?", default="y"):
-            step_dashboard()
+        if _ask("\nLaunch dashboard + API now?", default="y"):
+            step_serve()
     elif choice == "2":
         step_train()
     elif choice == "3":
         step_evaluate()
     elif choice == "4":
-        step_dashboard()
+        step_serve()
     elif choice == "5":
-        step_nextjs()
-    elif choice == "6":
         print("  Bye.")
         sys.exit(0)
 

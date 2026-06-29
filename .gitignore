@@ -43,3 +43,9 @@ GAMMA_PROMPT.md
 PRESENTATION_SPEECH_10MIN.md
 DOCUMENTATION_PROJET.md
 dashboard-next/REDESIGN_COMPLETE.md
+
+# MS Office temporary / lock files (created while a doc is open)
+~$*
+
+# TypeScript incremental build cache
+*.tsbuildinfo

@@ -16,8 +16,11 @@ COPY src/  ./src/
 COPY data/ ./data/
 COPY api/  ./api/
 
-# Train all models and bake them into the image.
-RUN python src/train.py
+# Train all models and bake them into the image:
+#   train.py    → regression serving models ({name}.pkl)
+#   models.py   → classification models (/classify)
+#   evaluate.py → metrics_*.csv + figures/ (served by /metrics/* and /figures/*)
+RUN python src/train.py && python src/models.py && python src/evaluate.py
 
 EXPOSE 8000
 
