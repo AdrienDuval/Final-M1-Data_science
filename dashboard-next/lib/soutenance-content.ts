@@ -1,6 +1,7 @@
 /**
  * Contenu pédagogique pour la préparation à la soutenance RNCP40875 — Bloc 2.
  * Marketing ROI Optimization — EFREI M1 Data Engineering.
+ * Aligné sur le « Guide de préparation — Soutenance Bloc 1 & 2 » (EFREI, session 2026-2027).
  */
 
 export type CheckItem = { id: string; label: string };
@@ -50,24 +51,409 @@ export type JuryQuestion = {
   question: string;
   answer: string;
   relatedPhase: string;
+  source?: "guide" | "projet" | "individualisation";
+};
+
+export type GuideCheckItem = {
+  id: string;
+  section: string;
+  question: string;
+};
+
+export type AlignmentRow = {
+  guideRequirement: string;
+  competency: string;
+  status: "ok" | "partial" | "oral";
+  projectProof: string;
+  oralAction?: string;
 };
 
 export const DEFENSE_INFO = {
-  title: "Soutenance de fin de M1 — Marketing ROI Optimization",
-  dates: "2 & 3 juillet 2026",
+  /** Cette page couvre UNIQUEMENT le projet Data Science — pas la soutenance M1 complète */
+  scope: "Projet Data Science uniquement — pages séparées prévues pour Architecture et GenAI",
+  title: "Marketing ROI Optimization",
+  subtitle: "Projet Data Science — Bloc 2 RNCP40875",
+  dates: "2 juillet 2026 — 11h15–12h15",
+  slot: "Jury 7 · Salle K008 · binôme avec Quang Dat LE",
   jury: "2 professionnels externes + 1 interne EFREI",
-  format: "Oral en binôme — 1 h au total",
-  breakdown: [
-    { label: "Présentation", value: "20 min" },
-    { label: "Échanges avec le jury", value: "30 min" },
-    { label: "Délibération", value: "10 min" },
-  ],
-  certification: "RNCP40875 — Expert en Ingénierie de Données — Bloc 2",
-  subject: "Plateforme intelligente multi-modèles pour optimiser le ROI marketing",
+  format: "Oral en binôme — évaluation individualisée",
+  /** Temps oral alloué à CE projet dans la soutenance M1 (guide EFREI §4.3) */
+  presentationMinutes: "9 min",
+  /** Budget slides pour CE projet dans le deck global (guide §5 : 20 slides max pour les 3 projets) */
+  slidesBudget: "5 slides max",
+  slidesBudgetDetail:
+    "Le support global fait ~20 slides (intro + 3 projets + conclusion). Réservez ~5 slides pour le Data Science — le reste va à l'Architecture, au GenAI et aux slides communes.",
+  certification: "RNCP40875 — Bloc 2 — compétences C3.1 à C4.3",
+  subject: "Plateforme multi-modèles pour optimiser le ROI marketing",
   authors: "LE Quang Dat · Adrien CHUEMBOU MBAH",
   datasetOfficial: "marketing_and_sales.csv (Kaggle) — ~200 campagnes (énoncé)",
   datasetUsed: "marketing_labelled.csv — 4 572 campagnes (jeu enrichi, même variables)",
+  passingRule: "≥ 10/20 + chaque compétence C3.1–C4.3 validée",
+  logicFormula: "Besoin métier → choix techniques → réalisation → preuve → résultat → limites",
 };
+
+/** Script guide EFREI §4.3 — oral de CE projet (9 minutes) */
+export const GUIDE_DATA_SCIENCE_TIMELINE: TimelineBlock[] = [
+  {
+    minutes: "0–1 min",
+    title: "1. Question métier",
+    speaker: "Membre 1",
+    content: [
+      "Un CMO alloue son budget TV / Radio / Social / Influenceur sans visibilité sur le retour ventes",
+      "Question : « Quel mix maximise les ventes pour un budget donné ? » et « Quel budget minimal pour une cible ? »",
+      "Lier explicitement à C4.1 : cas d'usage IA intégré dans le processus décisionnel marketing",
+    ],
+  },
+  {
+    minutes: "1–3 min",
+    title: "2. Préparation et nettoyage (C3.1)",
+    speaker: "Membre 1",
+    content: [
+      "Dataset Kaggle — 4 572 campagnes, 4 canaux + Sales",
+      "Pipeline sklearn : imputation médiane/mode, StandardScaler, OneHotEncoder drop-first",
+      "Anti-leakage : ColumnTransformer fit sur train uniquement, split 80/20 stratifié",
+      "Preuve : extrait avant/après dans notebook + preprocessing.py partagé train/API",
+    ],
+  },
+  {
+    minutes: "3–4 min",
+    title: "3. Analyse exploratoire (C3.3)",
+    speaker: "Membre 1 ou 2",
+    content: [
+      "Insights : TV corrèle fortement avec Sales (r ≈ 0.9995), Radio secondaire, Social modéré",
+      "Distribution Sales → perf_class (Low/Medium/High) par quantiles 33/66 %",
+      "Ne pas confondre corrélation et causalité — données synthétiques",
+      "Preuve : notebooks/01_eda.ipynb + pages Dashboard / Analytics",
+    ],
+  },
+  {
+    minutes: "4–7 min",
+    title: "4. Modélisation prédictive (C4.2)",
+    speaker: "Membre 2",
+    content: [
+      "4 modèles régression : Linear (baseline), Random Forest, Gradient Boosting, MLP (DL obligatoire)",
+      "RandomizedSearchCV 15×5 folds — compromis performance / coût calcul (écoresponsabilité C4.3)",
+      "Meilleur modèle : RF R² test = 0.9971 — MLP compétitif (0.9925) mais plus coûteux",
+      "Classification bonus perf_class : 4 modèles, accuracy ≈ 97.4 %",
+    ],
+  },
+  {
+    minutes: "7–9 min",
+    title: "5. Comparaison, dashboard & limites (C3.2 · C4.3)",
+    speaker: "Membre 2 + démo",
+    content: [
+      "Comparaison : MAE, RMSE, R² + CV · matrice de confusion · courbes d'apprentissage MLP",
+      "Dashboard décisionnel Next.js : Simulateur, Target Planner (SLSQP), Predict — pas de l'EDA seule",
+      "Inclusif : interface FR/EN (i18n) — public CMO varié",
+      "Limites : données synthétiques, arbres n'extrapolent pas, influenceur peu prédictif ici",
+      "Phrase clé : « Cette partie démontre C3.2 car le dashboard aide à la décision en temps réel »",
+    ],
+  },
+];
+
+/** 5 slides max pour CE projet (guide §5 — deck global ~20 slides pour les 3 projets) */
+export const SLIDES_DATA_SCIENCE = [
+  {
+    slide: "1/5",
+    title: "Question métier & stratégie IA",
+    content: "Problème CMO · réponse MVP · compétences Bloc 2 · feuille de route C4.1",
+    speaker: "Adrien" as const,
+    minutes: "0:00 → 1:00",
+    speechIds: ["speech-1"],
+  },
+  {
+    slide: "2/5",
+    title: "Données & insight EDA",
+    content: "Kaggle 4 572 lignes · corrélation TV-Sales · corrélation ≠ causalité · perf_class",
+    speaker: "Adrien" as const,
+    minutes: "1:00 → 2:15",
+    speechIds: ["speech-2"],
+  },
+  {
+    slide: "3/5",
+    title: "Pipeline & anti-leakage",
+    content: "preprocessing.py · ColumnTransformer · split stratifié · rôle API",
+    speaker: "Adrien" as const,
+    minutes: "2:15 → 3:45",
+    speechIds: ["speech-3"],
+  },
+  {
+    slide: "4/5",
+    title: "Modélisation & comparaison",
+    content: "4 modèles + MLP · RandomizedSearchCV · RF retenu · métriques C4.3",
+    speaker: "Quang Dat" as const,
+    minutes: "3:45 → 6:30",
+    speechIds: ["speech-4"],
+  },
+  {
+    slide: "5/5",
+    title: "Dashboard & limites",
+    content: "Démo Simulateur + Target Planner · synthèse compétences · limites",
+    speaker: "Adrien + Quang Dat" as const,
+    minutes: "6:30 → 9:00",
+    speechIds: ["speech-5a", "speech-5b"],
+  },
+];
+
+export type SpeechBlock = {
+  id: string;
+  speaker: "Adrien" | "Quang Dat";
+  slide: string;
+  minutes: string;
+  competencies: string[];
+  /** Indication scène (clic slide, démo, transition) */
+  stageDirection?: string;
+  text: string;
+};
+
+/**
+ * Script oral complet ~9 min — répartition suggérée :
+ * Adrien ≈ 4 min 30 (slides 1–3 + démo slide 5)
+ * Quang Dat ≈ 4 min 30 (slide 4 + clôture slide 5)
+ *
+ * Rythme visé : ~120 mots/min → ~1 080 mots au total.
+ * À répéter à voix haute et ajuster selon votre débit.
+ */
+export const ORAL_SPEECH_SCRIPT: SpeechBlock[] = [
+  {
+    id: "speech-1",
+    speaker: "Adrien",
+    slide: "1/5",
+    minutes: "0:00 → 1:00",
+    competencies: ["C4.1"],
+    stageDirection: "Slide 1 à l'écran. Regard jury, pas le support.",
+    text: `Bonjour. Pour la partie Data Science, nous présentons Marketing ROI Optimization — une plateforme qui aide un directeur marketing à décider où investir son budget publicitaire.
+
+Le problème est simple : une entreprise dépense sur la TV, la radio, les réseaux sociaux et les influenceurs, mais elle ne sait pas quel mix maximise ses ventes, ni quel budget minimum lui permet d'atteindre un objectif de chiffre d'affaires.
+
+Notre réponse : un MVP qui prédit les ventes à partir de quatre leviers, compare plusieurs modèles de machine learning, et expose le tout via une API et un tableau de bord interactif. L'objectif n'est pas seulement d'avoir un bon score : c'est de montrer les compétences du Bloc 2 — de la préparation des données jusqu'à l'évaluation comparative, en passant par la visualisation utile à la décision.
+
+Sur le plan C4.1, notre stratégie d'intégration de l'IA est progressive : d'abord un dashboard pour le CMO, ensuite une API REST pour l'intégrer à d'autres outils, puis un déploiement Docker reproductible. À terme, on viserait du MLOps : surveillance de la dérive des données et réentraînement périodique.
+
+J'enchaîne sur les données et le pipeline, puis Quang Dat présentera la modélisation.`,
+  },
+  {
+    id: "speech-2",
+    speaker: "Adrien",
+    slide: "2/5",
+    minutes: "1:00 → 2:15",
+    competencies: ["C3.3"],
+    stageDirection: "Slide 2 — montrer le graphique corrélation TV / Sales.",
+    text: `Nous travaillons sur le jeu Kaggle Dummy Advertising and Sales Data, enrichi en interne : 4 572 campagnes, les mêmes variables que l'énoncé EFREI — TV, Radio, Social Media, Influencer et Sales en cible.
+
+L'analyse exploratoire, documentée dans notre notebook et reprise dans les pages Analytics du dashboard, montre un insight clé : la TV est de loin le levier le plus lié aux ventes, avec une corrélation de Pearson d'environ 0,9995. La radio suit avec un lien fort, autour de 0,87. Les réseaux sociaux ont un effet plus modéré.
+
+Point important pour le jury : corrélation n'est pas causalité. Sur des données réelles, d'autres facteurs — saisonnalité, concurrence, notoriété — interviendraient. Ici, le jeu est synthétique, ce qui explique des relations très nettes. Nous le assumons et nous le rappelons dans notre bilan.
+
+En parallèle, nous avons créé une variable perf_class — Low, Medium, High — par terciles sur les ventes, pour une tâche de classification bonus. Cela complète la régression principale sans la remplacer.`,
+  },
+  {
+    id: "speech-3",
+    speaker: "Adrien",
+    slide: "3/5",
+    minutes: "2:15 → 3:45",
+    competencies: ["C3.1", "C4.2"],
+    stageDirection: "Slide 3 — schéma pipeline (Bronze → preprocess → modèle). Insister sur « fit sur train only ».",
+    text: `Pour garantir la qualité des données, compétence C3.1, tout le prétraitement est centralisé dans preprocessing.py et partagé entre l'entraînement et l'API. Concrètement : imputation par la médiane pour les variables numériques, par le mode pour Influencer ; standardisation des numériques ; encodage one-hot avec drop-first pour éviter la multicolinéarité.
+
+Le point que le jury attend souvent : zéro data leakage. Nous encapsulons imputation, scaling et encodage dans un ColumnTransformer sklearn, lui-même dans un Pipeline fit uniquement sur le jeu d'entraînement. Le split 80-20 est stratifié sur perf_class pour garder des classes équilibrées. Les indices exacts sont sauvegardés dans splits.pkl pour que evaluate.py teste toujours sur les mêmes lignes.
+
+Mon rôle personnel sur ce projet a surtout porté sur ce pipeline et sur l'API FastAPI : même transformation à l'entraînement et à l'inférence, modèles chargés au démarrage, endpoints /predict et /optimize pour le dashboard. Je transmets à Quang Dat pour la modélisation et la comparaison des algorithmes.`,
+  },
+  {
+    id: "speech-4",
+    speaker: "Quang Dat",
+    slide: "4/5",
+    minutes: "3:45 → 6:30",
+    competencies: ["C4.2", "C4.3"],
+    stageDirection: "Slide 4 — tableau comparatif des 4 modèles. Ne pas lire tous les chiffres : citer RF, MLP, CV.",
+    text: `Merci Adrien. Sur la modélisation, compétence C4.2, nous avons entraîné quatre modèles de régression, comme exigé, dont un réseau de neurones MLP pour le deep learning : régression linéaire comme baseline interprétable, Random Forest, Gradient Boosting, et MLP à deux couches cachées 64 puis 32 neurones.
+
+Chaque modèle passe par le même pipeline de prétraitement. Pour les arbres et le MLP, nous avons utilisé RandomizedSearchCV — quinze itérations, cinq folds — plutôt qu'une grille exhaustive. C'est un choix d'écoresponsabilité, C4.3 : explorer l'espace des hyperparamètres sans multiplier inutilement les entraînements.
+
+Les résultats sur le hold-out test : Random Forest obtient le meilleur R², 0,9971, avec un MAE d'environ 2,82 millions et un RMSE de 5,05. En validation croisée, il reste en tête : 0,9965 plus ou moins 0,0028 — stable. Le MLP atteint 0,9925 : compétitif, mais légèrement en dessous et plus coûteux à entraîner et à servir. Sur des données tabulaires structurées, les modèles à arbres suffisent souvent ; le deep learning n'est pas automatiquement supérieur — c'est une conclusion que nous assumons devant le jury.
+
+En classification bonus sur perf_class, quatre modèles atteignent environ 97,4 % d'accuracy ; Gradient Boosting et régression logistique sont à égalité en tête. Nous comparons aussi F1-macro et ROC-AUC, avec analyse des résidus, matrice de confusion et importance par permutation — plus fiable que l'importance intrinsèque des arbres quand les variables sont corrélées.
+
+Mon apport principal porte sur train.py, models.py et evaluate.py : entraînement, tuning, métriques et figures. Je propose qu'Adrien vous montre maintenant comment le CMO utilise ces modèles sans toucher au code.`,
+  },
+  {
+    id: "speech-5a",
+    speaker: "Adrien",
+    slide: "5/5",
+    minutes: "6:30 → 7:45",
+    competencies: ["C3.2"],
+    stageDirection: "Slide 5 + DÉMO live : Simulateur puis Target Planner (~1 min). Parler en manipulant les sliders.",
+    text: `Slide 5 — compétence C3.2 : communication visuelle orientée décision, pas de l'EDA seule.
+
+Je ouvre le Simulateur : je fixe TV à 100 millions, Radio à 25, Social à 10, influenceur Mega. Le Random Forest prédit les ventes et le ROI instantanément. Si j'augmente le social media de cinquante pour cent, on voit l'impact sur les ventes et le retour sur investissement — le CMO teste un scénario en quelques secondes.
+
+Sur Target Planner : objectif 200 millions de ventes — l'API calcule un budget optimal via scipy SLSQP, et une analyse probabiliste estime la chance d'atteindre l'objectif à partir des arbres du Random Forest.
+
+Le dashboard est en Next.js, bilingue FR-EN, et consomme uniquement l'API REST : architecture proche d'un produit industrialisable. Je laisse Quang Dat conclure sur les limites.`,
+  },
+  {
+    id: "speech-5b",
+    speaker: "Quang Dat",
+    slide: "5/5",
+    minutes: "7:45 → 9:00",
+    competencies: ["C4.3", "C3.1–C4.3"],
+    stageDirection: "Revenir slide 5 ou slide limites. Ton calme, pas de précipitation.",
+    text: `Pour conclure sur ce projet Data Science.
+
+Limites assumées : données synthétiques — d'où un R² très élevé ; en conditions réelles, il faudrait valider sur des campagnes authentiques et monitorer la dérive. Les modèles à arbres n'extrapolent pas au-delà des budgets vus à l'entraînement : le dashboard signale ce cas et recommande la régression linéaire si on sort des bornes. Enfin, l'influenceur est peu prédictif sur ce jeu — nous ne sur-interprétons pas.
+
+En synthèse, nous démontrons C3.1 via le pipeline, C3.3 via l'EDA, C3.2 via le dashboard décisionnel, C4.2 via quatre modèles dont le MLP, C4.3 via la comparaison rigoureuse, et C4.1 via la feuille de route d'intégration présentée par Adrien.
+
+Merci. Nous sommes prêts pour vos questions sur la partie Data Science.`,
+  },
+];
+
+/** Répartition orateur ↔ slides (vue rapide) */
+export const SPEECH_SPLIT_SUMMARY = [
+  { speaker: "Adrien", slides: "1/5 → 3/5 + démo 5/5", duration: "~4 min 45", topics: "Métier, EDA, pipeline C3.1, API, démo dashboard C3.2" },
+  { speaker: "Quang Dat", slides: "4/5 + clôture 5/5", duration: "~4 min 15", topics: "Modèles C4.2, métriques C4.3, limites, synthèse compétences" },
+] as const;
+
+export const GUIDE_ALIGNMENT: AlignmentRow[] = [
+  {
+    guideRequirement: "Préparer, transformer et nettoyer les données (C3.1)",
+    competency: "C3.1",
+    status: "ok",
+    projectProof: "src/preprocessing.py — imputation, scaling, encoding, pipeline partagé train/API",
+  },
+  {
+    guideRequirement: "Tableau de bord interactif, clair, inclusif, utile à la décision (C3.2)",
+    competency: "C3.2",
+    status: "ok",
+    projectProof: "dashboard-next — Simulateur, Predict, Target Planner, i18n FR/EN, Recharts temps réel",
+  },
+  {
+    guideRequirement: "Analyse exploratoire et insights métier (C3.3)",
+    competency: "C3.3",
+    status: "ok",
+    projectProof: "notebooks/01_eda.ipynb + /stats + /analytics + pages Dashboard/Analytics",
+  },
+  {
+    guideRequirement: "Stratégie d'intégration de l'IA (C4.1)",
+    competency: "C4.1",
+    status: "oral",
+    projectProof: "FastAPI + Docker + workflow CMO (simuler → prédire → optimiser)",
+    oralAction: "Expliciter à l'oral la feuille de route : MVP dashboard → API → industrialisation MLOps",
+  },
+  {
+    guideRequirement: "Modèle prédictif fonctionnel, ≥4 algos dont DL (C4.2)",
+    competency: "C4.2",
+    status: "ok",
+    projectProof: "4 régression + 4 classification, MLP obligatoire, RandomizedSearchCV, src/train.py + models.py",
+  },
+  {
+    guideRequirement: "Comparer plusieurs modèles, métriques, écoresponsabilité (C4.3)",
+    competency: "C4.3",
+    status: "ok",
+    projectProof: "metrics_*.csv, figures/, permutation importance, RF préféré à MLP pour coût inférence",
+  },
+  {
+    guideRequirement: "Preuves : dataset avant/après, notebook, dashboard, comparaison modèles",
+    competency: "C3.1–C4.3",
+    status: "ok",
+    projectProof: "Notebook EDA, metrics pages, confusion matrix, feature importance, SHAP optionnel",
+  },
+  {
+    guideRequirement: "Éviter : scores sans explication, corrélation ≠ causalité, un seul modèle",
+    competency: "—",
+    status: "oral",
+    projectProof: "4 modèles comparés, limites documentées dans soutenance + README",
+    oralAction: "Préparer phrase sur corrélation TV-Sales vs causalité réelle",
+  },
+];
+
+export const GUIDE_AUTO_CHECKLIST: GuideCheckItem[] = [
+  { id: "g-c31-1", section: "Bloc 2 — Data Science", question: "Avons-nous expliqué la préparation des données ?" },
+  { id: "g-c32-1", section: "Bloc 2 — Data Science", question: "Avons-nous présenté des insights issus de l'analyse exploratoire ?" },
+  { id: "g-c32-2", section: "Bloc 2 — Data Science", question: "Avons-nous montré un tableau de bord utile à la décision ?" },
+  { id: "g-c42-1", section: "Bloc 2 — Data Science", question: "Avons-nous développé un modèle prédictif ?" },
+  { id: "g-c43-1", section: "Bloc 2 — Data Science", question: "Avons-nous comparé plusieurs modèles ?" },
+  { id: "g-c43-2", section: "Bloc 2 — Data Science", question: "Avons-nous justifié le modèle retenu ?" },
+  { id: "g-c43-3", section: "Bloc 2 — Data Science", question: "Avons-nous identifié les limites du modèle ?" },
+  { id: "g-c41-1", section: "Bloc 2 — Data Science", question: "Avons-nous présenté une stratégie d'intégration de l'IA ?" },
+  { id: "g-ind-1", section: "Individualisation", question: "Chaque étudiant connaît-il sa contribution personnelle ?" },
+  { id: "g-ind-2", section: "Individualisation", question: "Chaque étudiant sait-il expliquer au moins un choix technique ?" },
+  { id: "g-ind-3", section: "Individualisation", question: "Chaque étudiant peut-il citer les compétences qu'il démontre ?" },
+  { id: "g-ind-4", section: "Individualisation", question: "Chaque étudiant peut-il répondre à une question sur les limites ?" },
+];
+
+export const COMMON_MISTAKES = [
+  {
+    title: "Présenter le projet sans lien avec les compétences",
+    detail: "Relier chaque démo à une compétence : « Cette partie démontre C3.2 car… »",
+  },
+  {
+    title: "Montrer des résultats sans justification",
+    detail: "Expliquer pourquoi ce modèle, cette métrique, cette architecture — pas seulement le score.",
+  },
+  {
+    title: "Oublier les limites",
+    detail: "Données synthétiques, extrapolation arbres, corrélation ≠ causalité — reconnaître = recul pro.",
+  },
+  {
+    title: "Démonstration trop longue",
+    detail: "Simulateur + Target Planner en 2 min max. La démo sert la preuve, pas le spectacle.",
+  },
+  {
+    title: "Ne pas préparer l'individualisation",
+    detail: "Le jury évalue chaque étudiant. Préparer contribution, choix technique, difficulté résolue.",
+  },
+  {
+    title: "Confondre EDA et dashboard décisionnel",
+    detail: "EDA = notebook/Analytics. Décision = Simulateur, Predict, Target Planner pour le CMO.",
+  },
+];
+
+export const INDIVIDUALIZATION_QUESTIONS: JuryQuestion[] = [
+  {
+    category: "Individualisation — Guide EFREI",
+    question: "Quelle a été votre contribution principale ?",
+    answer: "Préparer une réponse personnelle : ex. pipeline preprocessing + API FastAPI (Adrien) ou entraînement modèles + évaluation (Quang Dat). Ne pas répondre « on a tout fait ensemble ».",
+    relatedPhase: "phase-0",
+    source: "individualisation",
+  },
+  {
+    category: "Individualisation — Guide EFREI",
+    question: "Quelle compétence pensez-vous avoir le mieux démontrée ?",
+    answer: "Choisir une compétence RNCP (C3.1–C4.3) et citer une preuve concrète du projet (fichier, page dashboard, métrique).",
+    relatedPhase: "phase-0",
+    source: "individualisation",
+  },
+  {
+    category: "Individualisation — Guide EFREI",
+    question: "Quel choix technique avez-vous porté ?",
+    answer: "Exemples : Random Forest vs MLP, RandomizedSearchCV vs GridSearch, Next.js vs Streamlit, split stratifié sur perf_class.",
+    relatedPhase: "phase-4",
+    source: "individualisation",
+  },
+  {
+    category: "Individualisation — Guide EFREI",
+    question: "Quelle difficulté avez-vous rencontrée et comment l'avez-vous résolue ?",
+    answer: "Exemples : data leakage évité via Pipeline, extrapolation arbres gérée par avertissement UI, alignement preprocessing train/inference.",
+    relatedPhase: "phase-3",
+    source: "individualisation",
+  },
+  {
+    category: "Individualisation — Guide EFREI",
+    question: "Que referiez-vous différemment ?",
+    answer: "Exemples : données réelles, feature engineering influenceur, monitoring drift, tests automatisés API.",
+    relatedPhase: "phase-8",
+    source: "individualisation",
+  },
+  {
+    category: "Individualisation — Guide EFREI",
+    question: "Quelle amélioration proposeriez-vous ?",
+    answer: "MLOps, A/B testing campagnes, authentification API, réentraînement périodique, explainability en production.",
+    relatedPhase: "phase-7",
+    source: "individualisation",
+  },
+];
 
 export const SUBJECT_REQUIREMENTS = [
   { req: "Choisir UNE tâche prédictive (régression OU classification)", status: "bonus" as const, note: "Régression principale + classification bonus (perf_class)" },
@@ -143,11 +529,11 @@ export const RNCP_CRITERIA: RncpCriterion[] = [
       "Architecture déployable et industrialisable",
     ],
     projectProof: [
-      "Cas d'usage : CMO alloue budget → prédit ventes → compare scénarios → optimise mix",
-      "ROI (Return On Investment = retour sur investissement) = ventes prédites / budget total (ratio renvoyé par /predict)",
-      "FastAPI + Docker Compose : service reproductible, healthcheck, modèles embarqués dans l'image",
-      "Stack produit unifiée : API FastAPI + tableau de bord Next.js (React) qui consomme l'API REST",
-      "Limites assumées : données synthétiques, les arbres n'extrapolent pas → avertissement + repli recommandé sur la régression linéaire",
+      "Cas d'usage : CMO alloue budget → prédit ventes → compare scénarios → optimise mix (Simulateur + Target Planner)",
+      "Stratégie d'intégration IA (guide C4.1) : MVP dashboard Next.js → API FastAPI REST → Docker Compose → perspectives MLOps",
+      "ROI = ventes prédites / budget total (ratio renvoyé par /predict)",
+      "Impact quantifié : comparaison multi-modèles, optimisation inverse SLSQP, probabilité d'atteinte objectif",
+      "Limites assumées : données synthétiques, arbres n'extrapolent pas → avertissement UI + repli linéaire",
     ],
     files: ["api/main.py", "docker-compose.yml", "Dockerfile.api"],
   },
@@ -180,82 +566,17 @@ export const RNCP_CRITERIA: RncpCriterion[] = [
       "Interprétabilité (importance, SHAP)",
     ],
     projectProof: [
-      "Régression : R² test = 0.9971 (RF, meilleur modèle), RMSE 5.05 M$, MAE 2.82 M$, analyse des résidus",
-      "Classification : Accuracy 0.9737 (Gradient Boosting & Logistique), F1-macro 0.9736, ROC-AUC 0.999",
-      "Courbes d'apprentissage MLP, matrice de confusion, permutation importance",
-      "SHAP (SHapley Additive exPlanations) optionnel : python src/evaluate.py --shap",
-      "Justification : sur données synthétiques structurées, RF/GB ≥ MLP — le Deep Learning n'est pas toujours supérieur sur des données tabulaires",
+      "Régression : R² test = 0.9971 (RF), RMSE 5.05 M$, MAE 2.82 M$, CV 5 folds",
+      "Classification : Accuracy 0.9737 (GB & Logistique), F1-macro 0.9736, ROC-AUC 0.999",
+      "Écoresponsabilité (guide C4.3) : RandomizedSearchCV (15 iter) vs GridSearch exhaustif ; RF retenu vs MLP (inférence plus légère) ; cache LLM N/A ici mais pipeline minimal Docker",
+      "Courbes d'apprentissage MLP, matrice de confusion, permutation importance, SHAP optionnel",
+      "Limites explicitées : R² élevé attendu sur données synthétiques — généralisation réelle plus difficile",
     ],
     files: ["src/evaluate.py", "models/metrics_regression.csv", "figures/"],
   },
 ];
 
-export const PRESENTATION_TIMELINE: TimelineBlock[] = [
-  {
-    minutes: "0–2 min",
-    title: "Accroche & contexte métier",
-    speaker: "Membre 1",
-    content: [
-      "Problème : un CMO dépense sur TV, Radio, Social, Influenceurs — difficile de savoir quel mix maximise les ventes",
-      "Notre solution : MVP multi-modèles qui prédit les ventes et simule des scénarios budgétaires",
-      "Dataset Kaggle, 4 572 campagnes, 4 canaux + niveau influenceur",
-    ],
-  },
-  {
-    minutes: "2–5 min",
-    title: "Architecture & pipeline de données",
-    speaker: "Membre 1",
-    content: [
-      "Schéma : CSV → preprocessing.py → train.py → models/*.pkl → API → Dashboard",
-      "Anti-leakage : tout le preprocessing dans sklearn Pipeline, fit sur train seulement",
-      "Deux tâches : régression (Sales) principale + classification (Low/Medium/High) bonus",
-    ],
-  },
-  {
-    minutes: "5–10 min",
-    title: "Modélisation & comparaison",
-    speaker: "Membre 2",
-    content: [
-      "4 modèles régression : Linear (baseline), RF, Gradient Boosting, MLP (Deep Learning obligatoire)",
-      "Tuning RandomizedSearchCV 15 itérations × 5 folds",
-      "Résultats : RF R² test = 0.9971 (meilleur) — MLP en dessous (0.9925) → le Deep Learning n'est pas toujours optimal sur ce jeu tabulaire",
-      "Classification bonus : 4 modèles, accuracy ≈ 97.4 % (Gradient Boosting & Logistique)",
-    ],
-  },
-  {
-    minutes: "10–14 min",
-    title: "Évaluation & interprétabilité",
-    speaker: "Membre 2",
-    content: [
-      "Métriques : MAE, RMSE, R² + CV pour la régression ; Accuracy, F1-macro, ROC-AUC pour la classification",
-      "Analyse erreurs : résidus, matrice de confusion, courbes d'apprentissage MLP",
-      "Feature importance : TV ultra-dominant (r = 0.9995), Radio secondaire, influenceur quasi nul (jeu synthétique)",
-      "Permutation importance + SHAP disponible — importance par permutation = recommandée car agnostique au modèle",
-    ],
-  },
-  {
-    minutes: "14–18 min",
-    title: "Démo live du dashboard",
-    speaker: "Membre 1 ou 2",
-    content: [
-      "Simulateur (/simulator) : bouger les sliders, comparer les 4 modèles en temps réel",
-      "Target Planner (/target-planner) : objectif de ventes → budget optimal (SLSQP) + probabilité d'atteinte",
-      "Page Models & Drivers : métriques, courbes d'apprentissage, importance des variables",
-      "Montrer /docs Swagger si le jury pose des questions sur l'API",
-    ],
-  },
-  {
-    minutes: "18–20 min",
-    title: "Limites, perspectives & conclusion",
-    speaker: "Membre 1",
-    content: [
-      "Limites : données synthétiques, arbres n'extrapolent pas → repli linéaire hors bornes",
-      "Perspectives : données réelles, A/B testing, réentraînement automatique, MLOps",
-      "Récap RNCP : EF1–EF5 couverts, bonus API + double tâche + Docker",
-      "Merci — questions du jury",
-    ],
-  },
-];
+export const PRESENTATION_TIMELINE = GUIDE_DATA_SCIENCE_TIMELINE;
 
 export const PHASES: Phase[] = [
   {
@@ -269,18 +590,34 @@ export const PHASES: Phase[] = [
     sections: [
       {
         id: "p0-format",
-        title: "Format oral",
+        title: "Périmètre de cette page",
         paragraphs: [
-          "La soutenance dure 1 heure en binôme. Le jury a déjà lu votre dossier — l'oral sert à démontrer, pas à tout réexpliquer.",
-          "Répartition : 20 min présentation structurée, 30 min questions/réponses, 10 min délibération (vous n'êtes plus dans la salle).",
+          "Ce guide concerne uniquement le projet Data Science (Marketing ROI). Les projets Architecture et IA générative auront leurs propres pages /soutenance dans leurs dépôts.",
+          `Oral pour ce projet : ${DEFENSE_INFO.presentationMinutes} (guide EFREI §4.3). Slides : ${DEFENSE_INFO.slidesBudget} dans le deck global (~20 slides total pour les 3 projets + intro/conclusion).`,
+          DEFENSE_INFO.slidesBudgetDetail,
+          `Créneau soutenance M1 : ${DEFENSE_INFO.dates} · ${DEFENSE_INFO.slot}`,
         ],
         bullets: [
-          "Préparez-vous chacun à parler ~10 min",
-          "Alternez les rôles : un sur la data/ML, un sur l'architecture/démo",
-          "Ayez la démo prête offline (modèles entraînés, API lancée ou Docker up)",
-          "Anticipez 15–20 questions techniques du jury",
+          "Logique attendue pour CE projet : Besoin métier → choix techniques → preuve → résultat → limites",
+          "Répartissez ~4–5 min chacun sur les 9 minutes",
+          "Chaque membre doit répondre seul (contribution, choix technique, limites)",
+          "Reliez chaque slide à une compétence : « Cette slide démontre C3.2 car… »",
         ],
-        oralTip: "Commencez par UNE phrase métier : « Un directeur marketing veut savoir où investir 100 M$ pour maximiser ses ventes — notre plateforme répond à ça. »",
+        oralTip: "Ne pas confondre cette page (projet DS seul) avec le script M1 complet — celui-ci sera coordonné avec les 2 autres pages soutenance.",
+      },
+      {
+        id: "p0-guide-alignment",
+        title: "Alignement guide EFREI — Data Science",
+        table: {
+          headers: ["Exigence guide", "Compétence", "Statut", "Preuve projet"],
+          rows: GUIDE_ALIGNMENT.map((r) => [
+            r.guideRequirement,
+            r.competency,
+            r.status === "ok" ? "✅ Aligné" : r.status === "partial" ? "⚠️ Partiel" : "🗣️ À verbaliser",
+            r.projectProof,
+          ]),
+        },
+        status: "required",
       },
       {
         id: "p0-livrables",
@@ -480,7 +817,7 @@ export const PHASES: Phase[] = [
     icon: "Brain",
     rncp: ["C4.2"],
     ef: ["EF2"],
-    presentationMinutes: "5–10 min",
+    presentationMinutes: "4–7 min",
     sections: [
       {
         id: "p4-regression",
@@ -567,7 +904,7 @@ export const PHASES: Phase[] = [
     icon: "BarChart3",
     rncp: ["C4.3"],
     ef: ["EF3"],
-    presentationMinutes: "10–14 min",
+    presentationMinutes: "7–9 min (métriques + limites)",
     sections: [
       {
         id: "p5-metrics-reg",
@@ -653,7 +990,7 @@ export const PHASES: Phase[] = [
     icon: "LayoutDashboard",
     rncp: ["C3.2"],
     ef: ["EF4"],
-    presentationMinutes: "14–18 min (démo)",
+    presentationMinutes: "7–9 min (démo incluse)",
     sections: [
       {
         id: "p6-pages",
@@ -779,8 +1116,8 @@ export const PHASES: Phase[] = [
   {
     id: "phase-8",
     number: 8,
-    title: "Questions jury & pièges",
-    subtitle: "Anticiper les 30 min d'échanges",
+    title: "Questions jury — projet Data Science",
+    subtitle: "Anticiper les questions sur C3.1–C4.3 (échanges M1 globaux)",
     icon: "MessageCircle",
     rncp: ["Tous"],
     ef: ["Tous"],
@@ -807,6 +1144,85 @@ export const PHASES: Phase[] = [
 ];
 
 export const JURY_QUESTIONS: JuryQuestion[] = [
+  // ── Questions officielles — Guide EFREI §4.6 (Bloc 2 Data Science) ──
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Quelles données avez-vous utilisées ?",
+    answer: "Dataset Kaggle Dummy Advertising and Sales — 4 572 campagnes. Variables : TV, Radio, Social Media (numériques, millions $), Influencer (Mega/Macro/Micro/Nano), Sales (cible régression). perf_class dérivé par quantiles pour la classification bonus.",
+    relatedPhase: "phase-2",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Quels problèmes de qualité avez-vous identifiés ?",
+    answer: "Jeu synthétique très régulier — peu de valeurs manquantes. Nous imputons quand même (médiane/mode) via Pipeline. Outliers analysés dans l'EDA. Limitation principale : corrélation TV-Sales quasi parfaite, peu représentatif du réel bruité.",
+    relatedPhase: "phase-2",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Comment avez-vous traité les valeurs manquantes ?",
+    answer: "SimpleImputer : médiane pour TV/Radio/Social Media, mode pour Influencer. Calculé sur le train uniquement (anti-leakage), appliqué via ColumnTransformer dans le Pipeline sklearn.",
+    relatedPhase: "phase-3",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Pourquoi avoir choisi ces variables ?",
+    answer: "Ce sont les 4 leviers marketing du sujet EFREI + Sales comme cible. TV/Radio/Social = budgets continus. Influencer = effet catégoriel non linéaire. Toutes présentes dans le dataset officiel.",
+    relatedPhase: "phase-2",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Quels insights ressortent de l'analyse exploratoire ?",
+    answer: "TV domine (r ≈ 0.9995 avec Sales), Radio secondaire (r ≈ 0.87), Social modéré (r ≈ 0.53). Influenceur peu discriminant sur ce jeu synthétique. Distribution Sales quasi uniforme → perf_class par terciles.",
+    relatedPhase: "phase-2",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "À qui s'adresse votre tableau de bord ? En quoi aide-t-il à la décision ?",
+    answer: "Au CMO (Chief Marketing Officer). Simulateur : tester un mix budget en temps réel. Target Planner : budget minimal pour un objectif ventes. Predict : comparer 4 modèles. Ce n'est pas de l'EDA — c'est de la décision opérationnelle (C3.2).",
+    relatedPhase: "phase-6",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Quels modèles avez-vous testés ? Pourquoi ce modèle final ?",
+    answer: "4 régression : Linear, Random Forest, Gradient Boosting, MLP. RF retenu : meilleur R² test (0.9971) ET meilleur R² CV (0.9965), stable, interprétable via feature importance. MLP obligatoire mais plus coûteux et légèrement moins performant ici.",
+    relatedPhase: "phase-4",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Quelles métriques avez-vous utilisées ?",
+    answer: "Régression : R² (sélection), MAE, RMSE, CV 5 folds. Classification : Accuracy, F1-macro, ROC-AUC. Permutation importance pour l'interprétabilité agnostique. SHAP optionnel sur RF.",
+    relatedPhase: "phase-5",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Comment avez-vous évité le surapprentissage ?",
+    answer: "Hold-out 20 %, CV 5 folds (écart R² CV vs test < 0.002), early stopping MLP, RandomizedSearchCV pour régulariser les hyperparamètres (max_depth, alpha…). Courbes d'apprentissage MLP dans figures/.",
+    relatedPhase: "phase-5",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Quelles limites présente votre modèle ?",
+    answer: "Données synthétiques → R² très élevé non généralisable tel quel. Arbres n'extrapolent pas hors bornes d'entraînement. Corrélation TV-Sales ≠ causalité. Influenceur peu utile sur ce dataset. Recommandation : données réelles + monitoring drift.",
+    relatedPhase: "phase-5",
+    source: "guide",
+  },
+  {
+    category: "Guide EFREI — Data Science",
+    question: "Quelle est votre stratégie d'intégration de l'IA ?",
+    answer: "Intégrer la prédiction ML dans le workflow marketing : (1) MVP dashboard pour le CMO, (2) API REST pour intégration ERP/CRM, (3) Docker pour déploiement reproductible, (4) perspectives MLOps (réentraînement, A/B test). L'IA assiste la décision, ne la remplace pas.",
+    relatedPhase: "phase-1",
+    source: "guide",
+  },
+  // ── Questions techniques complémentaires (projet) ──
   {
     category: "Data & preprocessing",
     question: "Qu'est-ce que le data leakage et comment l'avez-vous évité ?",
